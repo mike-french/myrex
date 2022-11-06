@@ -1,0 +1,29 @@
+
+* Repeat process node
+
+* {N,M} repeats
+
+* Character classes
+
+* Line matching $ ^
+
+* More RE PCRE options
+
+* Two executor modes: 
+    independent one-shot
+    single network, traversal IDs
+    
+* Push files down into myrex directory
+
+* Named groups 
+
+* Function interface for events like attach
+  or at least tag messages {:attach, pid()}
+
+* Process behaviour
+
+* Separate proc module
+
+* Process runtime monitoring and assert eventually
+
+* Process dump to DOT
