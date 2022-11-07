@@ -10,6 +10,9 @@ defmodule Myrex do
   alias Myrex.Lexer
   alias Myrex.Parser
   alias Myrex.NFA.Executor
+  alias Myrex.NFA.Proc
+
+  @default_timeout 1_000
 
   @doc "Convert a regular expression to an NFA process network."
   @spec compile(String.t(), Keyword.t()) :: pid()
@@ -34,9 +37,10 @@ defmodule Myrex do
   end
 
   def run(start, str, opts) when is_pid(start) and is_binary(str) and is_list(opts) do
-    exec = Executor.init()
-    send(exec, self())
-    send(start, {str, 0, [], %{}, exec})
+    timeout = Keyword.get(opts, :timeout, @default_timeout)
+    exec = Executor.init(timeout)
+    Proc.connect(exec, self())
+    Proc.traverse(start, {str, 0, [], %{}, exec})
 
     receive do
       :no_match ->

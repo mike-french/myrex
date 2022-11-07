@@ -5,6 +5,7 @@ defmodule Myrex.ASTTest do
 
   test "chars" do
     do_ast("a", 'a')
+    do_ast(".", :any_char)
     do_ast("aabb", {:sequence, 'aabb'})
   end
 

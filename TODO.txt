@@ -7,11 +7,12 @@
 
 * Line matching $ ^
 
-* More RE PCRE options
+* More Elixir Regex (PCRE) options
 
 * Two executor modes: 
     independent one-shot
     single network, traversal IDs
+  Also link processes, trap exits and crash promptly
     
 * Push files down into myrex directory
 
@@ -22,8 +23,10 @@
 
 * Process behaviour
 
-* Separate proc module
-
 * Process runtime monitoring and assert eventually
 
 * Process dump to DOT
+
+* Handle multiple matches from greedy/non-greedy alternatives.
+  Perhaps a greedy AST optimizer that fuses compatible operators.
+  For example `a+a*` -> `a+`

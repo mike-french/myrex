@@ -11,16 +11,17 @@ defmodule Myrex.NFA.Executor do
   alias Myrex.Types, as: T
 
   @doc "Initialize a traversal."
-  @spec init() :: pid()
-  def init(), do: spawn(__MODULE__, :attach, [])
+  @spec init(timeout()) :: pid()
+  def init(timeout), do: spawn_link(__MODULE__, :attach, [timeout])
 
   @doc """
   Wait for attach message from the client process for reporting results.
   """
-  @spec attach() :: no_return()
-  def attach() do
+  @spec attach(timeout()) :: no_return()
+  def attach(timeout) do
     receive do
-      client when is_pid(client) -> match(1, client, :no_match)
+      {:attach, client} when is_pid(client) -> match(1, client, timeout)
+      msg -> raise RuntimeError, message: "Unhandled message #{inspect(msg)}"
     end
   end
 
@@ -39,33 +40,40 @@ defmodule Myrex.NFA.Executor do
   until all traversals are completed. 
   In this way, a single NFA network can be used to process multiple inputs concurrently.
   """
-  @spec match(T.count(), pid(), T.result()) :: no_return()
+  @spec match(T.count(), pid(), timeout()) :: no_return()
 
-  def match(0, client, :no_match) do
-    # only report when all traversals finished?
-    # send(client, result)
-    send(client, :no_match)
+  def match(0, client, _timeout) do
+    notify_result(client, :no_match)
     exit(:normal)
   end
 
-  def match(n, client, result) when is_count(n) and is_pid(client) do
+  def match(n, client, timeout) when is_count1(n) do
     receive do
-      m when is_count(m) ->
+      delta when is_count(delta) ->
         # split fan-out increases number of traversals 
-        match(n + m, client, result)
+        match(n + delta, client, timeout)
 
       :no_match ->
         # failure reduces number of traversals
-        # no_match does not overwrite existing success
-        match(n - 1, client, result)
+        match(n - 1, client, timeout)
 
       {:match, _} = success ->
         # assume first match is the only successful match
-        # short circuit report to client  
-        send(client, success)
-        # success reduces number of traversals 
-        # exit / kill processes or wait for remaining traversals?
-        match(n - 1, client, success)
+        notify_result(client, success)
+        exit(:normal)
+
+      msg ->
+        raise RuntimeError, message: "Unhandled message #{inspect(msg)}"
+    after
+      timeout -> raise RuntimeError, message: "Executor timeout"
     end
   end
+
+  @doc "Notify the executor that the number of traversals has increased."
+  @spec add_traversals(pid(), T.count()) :: any()
+  def add_traversals(exec, m) when is_pid(exec) and is_count(m), do: send(exec, m)
+
+  @doc "Send a match result to an executor or client."
+  @spec notify_result(pid(), T.result()) :: any()
+  def notify_result(exec, result) when is_pid(exec) and is_result(result), do: send(exec, result)
 end

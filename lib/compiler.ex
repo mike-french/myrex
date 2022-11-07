@@ -1,6 +1,7 @@
 defmodule Myrex.Compiler do
   @moduledoc "Public interface to build an NFA from an AST."
 
+  import Myrex.Types
   alias Myrex.Types, as: T
 
   alias Myrex.NFA
@@ -11,7 +12,7 @@ defmodule Myrex.Compiler do
   Compile an AST to an NFA.
   Return the start process of the NFA.
   """
-  @spec build(T.ast(), T.options(), T.count()) :: pid()
+  @spec build(T.ast(), T.options(), T.count()) :: T.proc()
   def build(ast, opts, gmax) do
     nfa = ast2nfa(ast, opts)
     success = Success.init(gmax)
@@ -90,6 +91,7 @@ defmodule Myrex.Compiler do
   end
 
   defp ast2nfa({:char_class, ccs}, opts) do
+    # character class is a choice among all the components
     ccs
     |> Enum.map(&ast2nfa(&1, opts))
     |> NFA.alternate()

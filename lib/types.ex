@@ -30,7 +30,7 @@ defmodule Myrex.Types do
 
   Option keys:
 
-  `:dotall` (boolean) force the any character wildcard `.` to include newline (default `false`).
+  `:dotall` (boolean) - force the any character wildcard `.` to include newline (default `false`).
 
   `:return` the type for group capture results:
   * `:index` (default) - the raw `{ position, length }` reference into the input string
@@ -39,8 +39,9 @@ defmodule Myrex.Types do
   `:return` the capture values to return in match results:
   * `:all` (default) - all captures are returned, except those explicitly excluded using `(?:...)`
   * _names_ - a list of names (1-based integer ordinals) to return a capture value
-    * `:none` - no captures returned
+  * `:none` - no captures returned
 
+  `:timeout` (default 1000ms) - the timeout (ms) for executing a string match
   """
   @type options() :: Keyword.t()
 
@@ -65,6 +66,8 @@ defmodule Myrex.Types do
 
   @typedoc "The result of trying to match the regular expression."
   @type result() :: :no_match | {:match, captures()}
+  defguard is_result(r)
+           when r == :no_match or (is_tuple(r) and tuple_size(r) == 2 and elem(r, 0) == :match)
 
   # ------------
   # lexer tokens

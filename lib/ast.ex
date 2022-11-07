@@ -27,7 +27,7 @@ defmodule Myrex.AST do
 
   @doc "Convert an AST tree of operators to a regular expression."
   @spec ast2re(T.ast()) :: String.t()
-  def ast2re(ast), do: ast |> node2re() |> IO.chardata_to_string()
+  def ast2re(ast), do: ast |> node2re() |> List.wrap() |> IO.chardata_to_string()
 
   @doc "Convert an AST node to a regular expression."
   @spec node2re(T.ast() | [T.ast()]) :: IO.chardata()

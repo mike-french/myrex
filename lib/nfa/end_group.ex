@@ -5,12 +5,13 @@ defmodule Myrex.NFA.EndGroup do
   alias Myrex.NFA.Proc
 
   @spec init() :: pid()
-  def init(), do: spawn(__MODULE__, :attach, [])
+  def init(), do: spawn_link(__MODULE__, :attach, [nil])
 
-  @spec attach() :: no_return()
-  def attach() do
+  @spec attach(any()) :: no_return()
+  def attach(_) do
     receive do
-      proc when is_proc(proc) -> match(Proc.input(proc))
+      {:attach, proc} when is_proc(proc) -> match(Proc.input(proc))
+      msg -> raise RuntimeError, message: "Unhandled message #{inspect(msg)}"
     end
   end
 
@@ -21,7 +22,10 @@ defmodule Myrex.NFA.EndGroup do
         # capture is a start-length pair of positions in the input
         new_captures = Map.put(captures, name, {begin, pos - begin})
         # pop the group off the stack, update the capture results
-        send(next, {str, pos, groups, new_captures, executor})
+        Proc.traverse(next, {str, pos, groups, new_captures, executor})
+
+      msg ->
+        raise RuntimeError, message: "Unhandled message #{inspect(msg)}"
     end
 
     match(next)

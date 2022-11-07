@@ -14,6 +14,7 @@ defmodule Myrex.NFA.Split do
   import Myrex.Types
   alias Myrex.Types, as: T
 
+  alias Myrex.NFA.Executor
   alias Myrex.NFA.Proc
 
   @spec init(T.proc() | T.procs()) :: pid()
@@ -27,13 +28,15 @@ defmodule Myrex.NFA.Split do
 
   @spec init(T.proc()) :: pid()
   def init(proc1) when is_proc(proc1) do
+    # needs attach step for output connection e.g. quantifiers
     spawn(__MODULE__, :attach, [Proc.input(proc1)])
   end
 
   @spec attach(T.proc()) :: no_return()
   def attach(next) when is_pid(next) do
     receive do
-      proc2 when is_proc(proc2) -> match([next, Proc.input(proc2)])
+      {:attach, proc2} when is_proc(proc2) -> match([next, Proc.input(proc2)])
+      msg -> raise RuntimeError, message: "Unhandled message #{inspect(msg)}"
     end
   end
 
@@ -42,8 +45,11 @@ defmodule Myrex.NFA.Split do
     receive do
       {_, _, _, _, executor} = msg ->
         delta_n = length(nexts) - 1
-        if delta_n > 0, do: send(executor, delta_n)
-        Enum.each(nexts, &send(&1, msg))
+        if delta_n > 0, do: Executor.add_traversals(executor, delta_n)
+        Enum.each(nexts, &Proc.traverse(&1, msg))
+
+      msg ->
+        raise RuntimeError, message: "Unhandled message #{inspect(msg)}"
     end
 
     match(nexts)

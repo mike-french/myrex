@@ -29,18 +29,18 @@ defmodule Myrex.NFA.Proc do
   @spec connect(T.proc(), T.proc()) :: T.proc()
 
   def connect(in_out, next) when is_pid(in_out) do
-    send(in_out, input(next))
+    send(in_out, {:attach, input(next)})
     next
   end
 
   def connect({_, output}, next) when is_pid(output) do
-    send(output, input(next))
+    send(output, {:attach, input(next)})
     next
   end
 
   def connect({_, outputs}, next) when is_list(outputs) do
     input = input(next)
-    Enum.each(outputs, &send(&1, input))
+    Enum.each(outputs, &send(&1, {:attach, input}))
     next
   end
 
@@ -60,4 +60,13 @@ defmodule Myrex.NFA.Proc do
   def outputs(proc, outputs \\ [])
   def outputs([p | procs], outputs), do: outputs(procs, [output(p) | outputs])
   def outputs([], outputs), do: List.flatten(outputs)
+
+  @doc """
+  Continue a traversal by sending new state to the next process.
+  """
+  @spec traverse(pid(), T.state()) :: :ok
+  def traverse(next, state) when is_pid(next) do
+    send(next, state)
+    :ok
+  end
 end
