@@ -234,7 +234,7 @@ defmodule Myrex.ParserTest do
     {toks, _} = Lexer.lex(re)
     IO.inspect(toks, label: "TOK  ")
     myast = Parser.parse(toks)
-    IO.inspect(ast, label: "MYAST")
+    IO.inspect(myast, label: "MYAST")
     mystr = AST.ast2str(myast)
     IO.puts(mystr)
     assert expect == mystr

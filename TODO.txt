@@ -1,32 +1,24 @@
 
 * Repeat process node
 
-* {N,M} repeats
+* {N,M} repeats, including {N,} syntax for 'or more'
 
-* Character classes
+* Character classes: scripts, categories
 
 * Line matching $ ^
 
-* More Elixir Regex (PCRE) options
+* Negated character class ^
 
-* Two executor modes: 
-    independent one-shot
-    single network, traversal IDs
-  Also link processes, trap exits and crash promptly
+* More Elixir Regex (PCRE) options
     
 * Push files down into myrex directory
 
-* Named groups 
+* Named groups (?<name>...) or (?'name'...)
 
-* Function interface for events like attach
-  or at least tag messages {:attach, pid()}
-
-* Process behaviour
+* Process behaviour? init, attach, match
 
 * Process runtime monitoring and assert eventually
+  
+* Clarify behaviour of top-level RE as string
 
-* Process dump to DOT
-
-* Handle multiple matches from greedy/non-greedy alternatives.
-  Perhaps a greedy AST optimizer that fuses compatible operators.
-  For example `a+a*` -> `a+`
+* Unicode escapes in the RE, with all string conversions

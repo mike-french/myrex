@@ -2,12 +2,11 @@ defmodule Myrex.NFA.Proc do
   @moduledoc """
   General utilities for networks of processes 
   with a single input process
-  and one or more output process
-  where downstream processes can be connected.
+  and one or more output processes.
 
   The network is built, then the output processes 
-  wait for a connection event for the output.
-  A connection is made by sending an input address (pid)
+  wait for a connection event from a downstream process..
+  A connection is made by sending an input address (PID)
   as a message to an output process.
 
   A network is represented by one of these PID structures:
@@ -17,6 +16,8 @@ defmodule Myrex.NFA.Proc do
   """
 
   alias Myrex.Types, as: T
+
+  alias Myrex.NFA.Graph
 
   @doc """
   Connect two process networks.
@@ -29,18 +30,23 @@ defmodule Myrex.NFA.Proc do
   @spec connect(T.proc(), T.proc()) :: T.proc()
 
   def connect(in_out, next) when is_pid(in_out) do
-    send(in_out, {:attach, input(next)})
+    dst = input(next)
+    Graph.add_edge(in_out, dst)
+    send(in_out, {:attach, dst})
     next
   end
 
   def connect({_, output}, next) when is_pid(output) do
-    send(output, {:attach, input(next)})
+    dst = input(next)
+    Graph.add_edge(output, dst)
+    send(output, {:attach, dst})
     next
   end
 
   def connect({_, outputs}, next) when is_list(outputs) do
-    input = input(next)
-    Enum.each(outputs, &send(&1, {:attach, input}))
+    dst = input(next)
+    Graph.add_edges(outputs, dst)
+    Enum.each(outputs, &send(&1, {:attach, dst}))
     next
   end
 
@@ -62,11 +68,20 @@ defmodule Myrex.NFA.Proc do
   def outputs([], outputs), do: List.flatten(outputs)
 
   @doc """
-  Continue a traversal by sending new state to the next process.
+  Continue a traversal by sending a new state to the next process.
   """
   @spec traverse(pid(), T.state()) :: :ok
   def traverse(next, state) when is_pid(next) do
     send(next, state)
     :ok
+  end
+
+  @doc """
+  Spawn a linked child NFA process.
+  Register the named node in the graph.
+  """
+  @spec init(module(), atom(), list(), String.t()) :: pid()
+  def init(m, f, a, name) do
+    spawn_link(m, f, a) |> Graph.add_node(name)
   end
 end

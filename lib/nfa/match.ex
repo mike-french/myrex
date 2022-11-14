@@ -4,11 +4,13 @@ defmodule Myrex.NFA.Match do
   import Myrex.Types
   alias Myrex.Types, as: T
 
-  alias Myrex.NFA.Executor
+  alias Myrex.Executor
   alias Myrex.NFA.Proc
 
-  @spec init(T.acceptor()) :: pid()
-  def init(accept?), do: spawn_link(__MODULE__, :attach, [accept?])
+  @spec init(T.acceptor(), String.t()) :: pid()
+  def init(accept?, label) when is_function(accept?, 1) do
+    Proc.init(__MODULE__, :attach, [accept?], label)
+  end
 
   @spec attach(T.acceptor()) :: no_return()
   def attach(accept?) do

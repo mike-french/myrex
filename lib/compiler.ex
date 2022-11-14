@@ -1,19 +1,26 @@
 defmodule Myrex.Compiler do
   @moduledoc "Public interface to build an NFA from an AST."
 
-  import Myrex.Types
   alias Myrex.Types, as: T
 
+  alias Myrex.AST
+  alias Myrex.Lexer
   alias Myrex.NFA
   alias Myrex.NFA.Proc
   alias Myrex.NFA.Success
+  alias Myrex.Parser
 
   @doc """
-  Compile an AST to an NFA.
-  Return the start process of the NFA.
+  Convert a regular expression to an NFA process network.
+  All processes are linked from the calling self process.
+  Return the address of the input process.
   """
-  @spec build(T.ast(), T.options(), T.count()) :: T.proc()
-  def build(ast, opts, gmax) do
+  @spec compile(T.regex(), Keyword.t()) :: pid()
+  def compile(re, opts) do
+    {toks, gmax} = Lexer.lex(re)
+    ast = Parser.parse(toks)
+    aststr = AST.ast2str(ast)
+    IO.puts(aststr)
     nfa = ast2nfa(ast, opts)
     success = Success.init(gmax)
     Proc.connect(nfa, success)
@@ -22,7 +29,7 @@ defmodule Myrex.Compiler do
 
   # Recursively convert an AST tree of operators
   # to an NFA process network and
-  # return the start input process.
+  # return the input process address.
   @spec ast2nfa(T.ast(), T.options()) :: pid()
 
   defp ast2nfa(c, _opts) when is_integer(c) do
@@ -68,6 +75,7 @@ defmodule Myrex.Compiler do
       case Keyword.get(opts, :capture, :all) do
         :none -> :nocap
         :all -> name
+        :named -> if not is_integer(name), do: name, else: :nocap
         names when is_list(names) -> if name in names, do: name, else: :nocap
       end
 
@@ -87,14 +95,13 @@ defmodule Myrex.Compiler do
   defp ast2nfa({:alternate, nodes}, opts) do
     nodes
     |> Enum.map(&ast2nfa(&1, opts))
-    |> NFA.alternate()
+    |> NFA.alternate("|")
   end
 
   defp ast2nfa({:char_class, ccs}, opts) do
-    # character class is a choice among all the components
     ccs
     |> Enum.map(&ast2nfa(&1, opts))
-    |> NFA.alternate()
+    |> NFA.alternate("[]")
   end
 
   defp ast2nfa(ast, _) do

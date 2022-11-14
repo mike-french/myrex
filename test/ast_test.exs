@@ -5,6 +5,10 @@ defmodule Myrex.ASTTest do
 
   test "chars" do
     do_ast("a", 'a')
+    do_ast("\\n", '\n')
+    # do_ast("\\u00A3", "\\u00A3")
+    # do_ast("\\u02DF", "\u02DF")
+    # do_ast("\\u540D", "\u540D")
     do_ast(".", :any_char)
     do_ast("aabb", {:sequence, 'aabb'})
   end
@@ -34,6 +38,7 @@ defmodule Myrex.ASTTest do
 
   test "char classes" do
     do_ast("[_A-Z]", {:char_class, [?_, {:char_range, ?A, ?Z}]})
+    do_ast("[\\0-\\n]", {:char_class, [{:char_range, ?\0, ?\n}]})
   end
 
   test "choice" do
@@ -55,7 +60,7 @@ defmodule Myrex.ASTTest do
     IO.inspect(ast, label: "AST")
 
     myre = AST.ast2re(ast)
-    assert myre == re
+    assert re == myre
 
     mystr = AST.ast2str(ast)
     IO.puts(mystr)

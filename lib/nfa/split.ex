@@ -14,22 +14,30 @@ defmodule Myrex.NFA.Split do
   import Myrex.Types
   alias Myrex.Types, as: T
 
-  alias Myrex.NFA.Executor
+  alias Myrex.NFA.Graph
   alias Myrex.NFA.Proc
 
-  @spec init(T.proc() | T.procs()) :: pid()
+  @spec init(T.proc() | T.procs(), String.t()) :: pid()
 
-  def init(procs) when is_list(procs) do
+  def init(procs, label) when is_list(procs) do
     nexts = Enum.map(procs, &Proc.input(&1))
     # fan-out to multiple procs e.g. alternate
     # does not need attach step
-    spawn(__MODULE__, :match, [nexts])
+    split = Proc.init(__MODULE__, :match, [nexts], label)
+    # split procs connections do not use Proc.connect
+    # so explicitly add the graph edge here
+    Graph.add_edges(split, nexts)
+    split
   end
 
-  @spec init(T.proc()) :: pid()
-  def init(proc1) when is_proc(proc1) do
+  def init(proc1, label) when is_proc(proc1) do
     # needs attach step for output connection e.g. quantifiers
-    spawn(__MODULE__, :attach, [Proc.input(proc1)])
+    pid = Proc.input(proc1)
+    split = Proc.init(__MODULE__, :attach, [pid], label)
+    # split proc connection does not use Proc.connect
+    # so explicitly add the graph edge here
+    Graph.add_edge(split, pid)
+    split
   end
 
   @spec attach(T.proc()) :: no_return()
@@ -45,7 +53,7 @@ defmodule Myrex.NFA.Split do
     receive do
       {_, _, _, _, executor} = msg ->
         delta_n = length(nexts) - 1
-        if delta_n > 0, do: Executor.add_traversals(executor, delta_n)
+        if delta_n > 0, do: add_traversals(executor, delta_n)
         Enum.each(nexts, &Proc.traverse(&1, msg))
 
       msg ->
@@ -54,4 +62,8 @@ defmodule Myrex.NFA.Split do
 
     match(nexts)
   end
+
+  @doc "Notify the executor that the number of traversals has increased."
+  @spec add_traversals(pid(), T.count()) :: any()
+  def add_traversals(exec, m) when is_pid(exec) and is_count(m), do: send(exec, m)
 end

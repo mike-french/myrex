@@ -11,7 +11,7 @@ The implementation is based on the idea of _Process Oriented Programming:_
 
 The REGEX is converted to an Abstract Syntax Tree (AST)
 using a variation of the _Shunting Yard_ 
-[Wikipedia](https://en.wikipedia.org/wiki/Shunting_yard_algorithm)
+\[[Wikipedia](https://en.wikipedia.org/wiki/Shunting_yard_algorithm)\]
 parsing algorithm.
 
 The AST is used to build a Non-deterministic Finite Automaton (NFA)
@@ -93,7 +93,12 @@ Stages of pre-processing:
 
 Two execution patterns:
 * single network that process multiple input strings simultaneously 
-* a dedicated independent network is built and torn down for each input 
+* dedicated independent network is built and torn down for each input 
+
+Two traversal strategies:
+* return the first match and stop execution
+* wait for all traversals to complete,
+  return all captures for ambiguous matches
 
 ### Captures
 
@@ -116,37 +121,39 @@ Capture values can be represented in two ways:
 A process network is a directed graph that has processes for nodes
 and message pathways as edges.
 A process subgraph has a single input edge and one or more output edges.
-The subgraph may be a single process that has both an input and outputs.
+The subgraph may be a single process that has both an input and 
+one or more outputs.
 
 The NFA is built using a variation of Thomson's Algorithm 
 based on process _combinators._
 A combinator is a function that takes one or more process subgraphs
 and combines them into a single larger graph.
 Process combinators correspond to AST branch nodes.
-Combinators used to recursively build larger networks
+Combinators recursively build larger networks
 from smaller operator subgraphs, 
 grounded in atomic character matchers
 \[[Cox](https://swtch.com/~rsc/regexp/regexp1.html)\].
 
-There are four processes that are used by combinators
+There are four processes used by combinators
 to implement parts of the AST as process subgraphs:
-* Branch nodes use `Split` to clone (fan out) 
-  traversals across 2 or more downstream subgraphs.
+* Branch nodes (quantifiers and alternate choice) 
+  use `Split` to clone (fan out) traversals 
+  across 2 or more downstream subgraphs.
 * Groups use `BeginGroup` and `EndGroup` to record captures.
-* Leaf nodes use `Match` with an acceptor function
+* Leaf nodes use `Match` with an _acceptor_ function
   to do the actual matching of individual characters, 
   character ranges and character classes.
   
 ### Sequence and Group
 
-Combinator for a sequence of process networks `_P1..Pn_` :
+Combinator for a sequence of process networks `P1 P2 .. Pn` :
 
 ```
        +----+             +----+
 in --->| P1 |---> ... --->| Pn | ---> outputs
        +----+             +----+
 ```
-Combinator for a group capture around a sequence `(...)`.
+Combinator for a group capture around a sequence `(P1 P2 .. Pn)`.
 
 ```
        +-----+    +--+             +--+    +-----+
@@ -158,9 +165,9 @@ in --->|Begin|--->|P1|---> ... --->|Pn|--->| End |---> out
   
 ### Alternate Choice
 
-Combinator for fan-out of alternate matches `|`.
+Combinator for fan-out of alternate matches `P1 | P2 | .. | Pn`.
 
-For Split process _S_ and processes _P1..Pn_ :
+For Split process _S_ and processes _P1 .. Pn_ :
 
 ```
                  +----+
@@ -178,7 +185,7 @@ For Split process _S_ and processes _P1..Pn_ :
 
 ### Quantifiers
 
-Combinator for zero or one repetitions `?`.
+Combinator for zero or one repetitions `P?`.
 
 Split node _S_ can bypass the process subgraph _P_ (zero).
 
@@ -193,7 +200,7 @@ Split node _S_ can bypass the process subgraph _P_ (zero).
         +---+
 ```
 
-Combinator for one or more repetitions `+`. 
+Combinator for one or more repetitions `P+`. 
 
 Split node _S_ can cycle back to the process node _P_ (more).
 The new network only has one output from the split node.
@@ -208,7 +215,7 @@ The new network only has one output from the split node.
         | S |---> output
         +---+
 ```
-Combinator for zero or more repetitions `*`.
+Combinator for zero or more repetitions `P*`.
 
 Split node _S_ can cycle through the process node _P_ (more).
 Split node _S_ can bypass the process subgraph _P_ (zero).
@@ -253,9 +260,57 @@ The currently supported keys and values are:
   
 `:timeout` (default 1000ms) - the timeout (ms) for executing a string match
 
+`:multiple` decide bahviour when the regular expression is ambiguous:
+* `:first` (default) - stop at the first successful match, return the capture.
+  If it is a oneshot execution, then teardown the NFA process network.
+  If it is a batch execution, then just halt the `Executor` process.
+* `:all` - wait for all traversals to complete and return all possible captures.
+
+## Multiple Matches
+
+Some regular expressions are ambiguous and will have multiple matches, 
+For example, the string `a` matches the regex `(a?)(a*)` in 2 different ways,
+and the resulting captures will have different values: `"a",""` and `"","a"`.
+
+The outcome for ambiguous regexes is usually 
+based on whether the operators are _greedy_ or not. 
+The Myrex implementation has local atomic operators 
+that execurte in parallel as an NFA, so they cannot choose 
+`greedy` or `non-greedy` behaviour.
+
+However, there is an option to choose how multiple matches are handled:
+* _first_ - stop at the first successful match and return the capture.
+  If it is a oneshot execution, then teardown the NFA process network.
+  If it is a batch execution, then just halt the `Executor` process.
+* `:all` - wait for all traversals to complete and return all possible captures.
+
+The first match is non-deterministic - the clue is in the name _*N*_ FA :)
+The actual outcome depends on the Erlang BEAM scheduler.
+In practice, it looks like non-greedy execution is favoured.
+If the regular expression is not ambiguous, then the option should be `:first`,
+because there may be a large delay to wait for all traversals to finish.
+
+For example: let's say the exponential operator means repeat 
+characters and groups, so `a^4` means `aaaa` and `a?^4` means `a?a?a?a?`.
+We will consider a regex of the form `(a?)^n (a*)^n` matching a string of `a^n`
+(an wild exaggeration from the example in
+\[[Cox](https://swtch.com/~rsc/regexp/regexp1.html)\]).
+The no. of matches, _M(n),_ is calculated by a dot product
+of two vectors sliced from Pascal's Triangle
+e.g. `M(3) = [1,3,3,1] * [1,3,6,10] = 1+9+18+10 = 38`
+(but this margin is too small to contain a proof :)
+
+Here is the number of traversals _M_ for each value of _n,_
+
+```
++------+---+---+----+-----+-------+-------+--------+---------+---------+
+|  n   | 1 | 2 |  3 |   4 |     5 |     6 |      7 |       8 |       9 |
+| M(n) | 2 | 8 | 38 | 192 | 1,002 | 5,336 | 28,814 | 157,184 | 864,146 |
++------+---+---+----+-----+-------+-------+--------+---------+---------+
+```
+
+
 ### Examples
-
-
 
 ## Performance
 
@@ -266,6 +321,7 @@ The currently supported keys and values are:
 Compile the project:
 
 `mix deps.get`
+
 `mix compile`
 
 Run dialyzer for type analysis:

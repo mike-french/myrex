@@ -32,6 +32,7 @@ defmodule Myrex.NFA do
 
   alias Myrex.NFA.BeginGroup
   alias Myrex.NFA.EndGroup
+  alias Myrex.NFA.Graph
   alias Myrex.NFA.Match
   alias Myrex.NFA.Proc
   alias Myrex.NFA.Split
@@ -58,7 +59,7 @@ defmodule Myrex.NFA do
   """
   @spec zero_one(T.proc()) :: T.proc()
   def zero_one(proc) do
-    split = Split.init(proc)
+    split = Split.init(proc, "?")
     {split, [proc, split]}
   end
 
@@ -81,7 +82,7 @@ defmodule Myrex.NFA do
   """
   @spec one_more(T.proc()) :: T.proc()
   def one_more(proc) do
-    split = Split.init(proc)
+    split = Split.init(proc, "+")
     Proc.connect(proc, split)
     {Proc.input(proc), split}
   end
@@ -105,7 +106,7 @@ defmodule Myrex.NFA do
   """
   @spec zero_more(T.proc()) :: T.proc()
   def zero_more(proc) do
-    split = Split.init(proc)
+    split = Split.init(proc, "*")
     Proc.connect(proc, split)
     {split, split}
   end
@@ -176,9 +177,9 @@ defmodule Myrex.NFA do
                    +----+
   ```
   """
-  @spec alternate(T.procs()) :: T.proc()
-  def alternate(procs) do
-    split = Split.init(procs)
+  @spec alternate(T.procs(), String.t()) :: T.proc()
+  def alternate(procs, name) do
+    split = Split.init(procs, name)
     {split, Proc.outputs(procs)}
   end
 
@@ -188,7 +189,9 @@ defmodule Myrex.NFA do
 
   @doc "Match a specific character."
   @spec match_char(char()) :: pid()
-  def match_char(char), do: Match.init(&(&1 == char))
+  def match_char(c) do
+    Match.init(&(&1 == c), IO.chardata_to_string([?', c, ?']))
+  end
 
   @doc """
   Match any character.
@@ -199,10 +202,16 @@ defmodule Myrex.NFA do
   """
 
   @spec match_any_char(boolean()) :: pid()
-  def match_any_char(dotall?), do: Match.init(fn c -> dotall? or c != ?\n end)
+  def match_any_char(dotall?) do
+    Match.init(fn c -> dotall? or c != ?\n end, ".")
+  end
 
   @doc "Match any character in the range between two characters (inclusive)."
   @spec match_char_range(T.char_pair()) :: pid()
-  def match_char_range({c1, c2} = cr) when is_cr(cr),
-    do: Match.init(fn c -> c1 <= c and c <= c2 end)
+  def match_char_range({c1, c2} = cr) when is_cr(cr) do
+    Match.init(
+      fn c -> c1 <= c and c <= c2 end,
+      IO.chardata_to_string([c1, ?-, c2])
+    )
+  end
 end

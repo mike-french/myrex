@@ -6,7 +6,9 @@ defmodule Myrex.NFA.BeginGroup do
   alias Myrex.NFA.Proc
 
   @spec init(T.capture_name()) :: pid()
-  def init(name) when is_name(name), do: spawn_link(__MODULE__, :attach, [name])
+  def init(name) when is_name(name) do
+    Proc.init(__MODULE__, :attach, [name], "(")
+  end
 
   @spec attach(T.capture_name()) :: no_return()
   def attach(name) do
@@ -20,6 +22,7 @@ defmodule Myrex.NFA.BeginGroup do
   defp match(name, next) do
     receive do
       {str, pos, groups, captures, executor} ->
+        # push a begin group tuple onto the group stack in the traversal state
         Proc.traverse(next, {str, pos, [{name, pos} | groups], captures, executor})
 
       msg ->

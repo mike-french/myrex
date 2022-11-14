@@ -1,6 +1,12 @@
 defmodule Myrex.Types do
   @moduledoc "Types and guards for Myrex."
 
+  # -----------------
+  # type constructors
+  # -----------------
+
+  @type maybe(t) :: t | nil
+
   # -----------------------------
   # cardinal and ordinal integers
   # -----------------------------
@@ -25,6 +31,9 @@ defmodule Myrex.Types do
   # public interfaces
   # -----------------
 
+  @typedoc "A regular expression is a string."
+  @type regex() :: String.t()
+
   @typedoc """
   Command options to compile and run Myrex.
 
@@ -34,16 +43,28 @@ defmodule Myrex.Types do
 
   `:return` the type for group capture results:
   * `:index` (default) - the raw `{ position, length }` reference into the input string
-  * :binary` - the actual substring of the capture
+  * `:binary` - the actual substring of the capture
 
-  `:return` the capture values to return in match results:
+  `:capture` the capture values to return in match results 
+  (in addition to the `0` capture of the whole input string):
   * `:all` (default) - all captures are returned, except those explicitly excluded using `(?:...)`
+  * `:named` - all explicitly named groups, but no unnamed or anonymous groups
   * _names_ - a list of names (1-based integer ordinals) to return a capture value
   * `:none` - no captures returned
 
   `:timeout` (default 1000ms) - the timeout (ms) for executing a string match
+
+  `:multiple` how to handle multiple successful matches:
+  * `:first` (default) - return the first match and truncate the traversals
+  * `:all` - complete all the actual substring of the capture
   """
   @type options() :: Keyword.t()
+
+  @type option_key() :: :dotall | :return | :capture | :timeout | :multiple
+
+  @type multiple_flag() :: :first | :all
+  @type capture_flag() :: :none | :named | :all
+  @type return_flag() :: :index | :binary
 
   @typedoc """
   A capture is a substring of the input 
@@ -64,10 +85,21 @@ defmodule Myrex.Types do
   @typedoc "The set of completed captures from a partial or total match."
   @type captures() :: %{capture_name() => :no_capture | capture() | String.t()}
 
-  @typedoc "The result of trying to match the regular expression."
-  @type result() :: :no_match | {:match, captures()}
+  @typedoc """
+  The result of trying to match the regular expression.
+
+  When the result is `:no_match`, the capture just contains 
+  key '0' with the value of the whole input string.
+
+  If the `:multiple` option is `:first`, then a successful result is a single `:match`.
+  If the `:multiple` option is `:all`, then a successful result is `:matches`
+  with a list of captures, even if the list just has one member.
+  """
+  @type result() :: {:no_match | :match, captures()} | {:matches, [captures()]}
   defguard is_result(r)
-           when r == :no_match or (is_tuple(r) and tuple_size(r) == 2 and elem(r, 0) == :match)
+           when is_tuple(r) and
+                  tuple_size(r) == 2 and
+                  (elem(r, 0) == :no_match or elem(r, 0) == :match or elem(r, 0) == :matches)
 
   # ------------
   # lexer tokens
@@ -164,6 +196,9 @@ defmodule Myrex.Types do
 
   @typedoc "A list of process networks."
   @type procs() :: [proc()]
+
+  @typedoc "A function that builds an NFA process network and returns the input process."
+  @type builder() :: (() -> pid())
 
   # --------------
   # Internal types

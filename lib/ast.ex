@@ -33,7 +33,7 @@ defmodule Myrex.AST do
   @spec node2re(T.ast() | [T.ast()]) :: IO.chardata()
   def node2re(nodes) when is_list(nodes), do: Enum.map(nodes, &node2re(&1))
   def node2re(str) when is_binary(str), do: str |> to_charlist() |> node2re()
-  def node2re(c) when is_char(c), do: c
+  def node2re(c) when is_char(c), do: esc(c)
   def node2re(:any_char), do: ?.
   def node2re({:sequence, nodes}), do: [node2re(nodes)]
   def node2re({:group, :nocap, nodes}), do: [?(, ??, ?:, node2re(nodes), ?)]
@@ -50,8 +50,8 @@ defmodule Myrex.AST do
 
   # Convert a character class element to text format.
   @spec cc2re(char() | T.char_pair()) :: IO.chardata()
-  defp cc2re({:char_range, c1, c2}), do: [c1, ?-, c2]
-  defp cc2re(c) when is_char(c), do: c
+  defp cc2re({:char_range, c1, c2}), do: [esc(c1), ?-, esc(c2)]
+  defp cc2re(c) when is_char(c), do: esc(c)
 
   @doc """
   Convert an AST tree of operators
@@ -69,11 +69,12 @@ defmodule Myrex.AST do
 
   defp ast2str(str, d) when is_binary(str) do
     # top-level string is a sequence of characters
-    ast2str({:sequence, to_charlist(str)}, d)
+    esc_char = str |> to_charlist() |> Enum.map(&esc/1)
+    ast2str({:sequence, esc_char}, d)
   end
 
   defp ast2str(c, d) when is_char(c) do
-    [indent(d), c, ?\n]
+    [indent(d), esc(c), ?\n]
   end
 
   defp ast2str(:any_char, d) do
@@ -161,8 +162,23 @@ defmodule Myrex.AST do
 
   # Convert a character class element to text format.
   @spec cc2str(char() | T.char_range()) :: IO.chardata()
-  defp cc2str({:char_range, c1, c2}), do: to_string([c1, ?-, c2])
-  defp cc2str(c) when is_char(c), do: c
+  defp cc2str({:char_range, c1, c2}), do: to_string([esc(c1), ?-, esc(c2)])
+  defp cc2str(c) when is_char(c), do: esc(c)
+
+  # escape individual characters 
+  @spec esc(char()) :: char() | charlist()
+  defp esc(c) when c > 0x0FFF, do: "\\u" <> Integer.to_string(c, 16)
+  defp esc(c) when c > 0x00FF, do: "\\u0" <> Integer.to_string(c, 16)
+  defp esc(c) when c > 0x007F, do: "\\u00" <> Integer.to_string(c, 16)
+  defp esc(?\\), do: "\\\\"
+  defp esc(?\0), do: "\\0"
+  defp esc(?\e), do: "\\e"
+  defp esc(?\f), do: "\\f"
+  defp esc(?\n), do: "\\n"
+  defp esc(?\r), do: "\\r"
+  defp esc(?\t), do: "\\t"
+  defp esc(?\v), do: "\\v"
+  defp esc(c), do: c
 
   # Generate an indent of spaces for the nested depth.
   @spec indent(T.count()) :: IO.chardata()

@@ -3,12 +3,16 @@ defmodule Myrex.NFA.Success do
   import Myrex.Types
   alias Myrex.Types, as: T
 
-  alias Myrex.NFA.Executor
+  alias Myrex.Executor
+  alias Myrex.NFA.Proc
 
   @spec init(T.count()) :: pid()
-  def init(ngroup) when is_count(ngroup), do: spawn_link(__MODULE__, :match, [ngroup])
+  def init(ngroup) when is_count(ngroup) do
+    Proc.init(__MODULE__, :match, [ngroup], "success")
+  end
 
   # no need for attach, because the executor is carried in the traversal state
+  # just included here so we could make an NFA node behaviour
   @spec attach(any()) :: no_return()
   def attach(_) do
     raise UndefinedFunctionError, message: "Success.attach/1"
@@ -17,11 +21,9 @@ defmodule Myrex.NFA.Success do
   @spec match(T.count()) :: no_return()
   def match(ngroup) when is_count(ngroup) do
     receive do
-      {"", len, [], captures, executor} when is_pid(executor) ->
+      {"", _len, [], captures, executor} when is_pid(executor) ->
         # finish state of the NFA and end of input, so a complete match
-        # 0th capture is the whole string
-        # when all input is consumed the final position is the length of input
-        captures = captures |> Map.put(0, {0, len}) |> default_captures(ngroup)
+        captures = default_captures(captures, ngroup)
         Executor.notify_result(executor, {:match, captures})
 
       {_, _, _, _, executor} when is_pid(executor) ->
