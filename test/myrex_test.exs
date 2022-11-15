@@ -267,8 +267,10 @@ defmodule Myrex.MyrexTest do
   defp run(nfa, str, opts) do
     IO.inspect(str, label: "STR   ")
 
-    Myrex.run(nfa, str, opts)
-    |> IO.inspect(label: "RESULT")
+    {time, value} = :timer.tc(fn -> Myrex.run(nfa, str, opts) end)
+    IO.inspect(value, label: "RESULT")
+    IO.inspect(time, label: "TIME (us)")
+    value
   end
 
   defp add0(caps \\ %{}, str), do: Map.put(caps, 0, str)

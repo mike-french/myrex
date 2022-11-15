@@ -168,7 +168,8 @@ in --->|Begin|--->| P1 |--->...--->| Pn |--->| End |---> out
        |Group|    +----+           +----+    |Group|
        +-----+                               +-----+
 ```
- Combinator for an AND sequence of peek lookahead matching nodes.
+ Combinator for an AND sequence of peek lookahead 
+ matching nodes  `M1 M2 .. Mn`:
  The peeking nodes are created in a negated character class,
  where all tests must pass for the first character of input,
  but the character must not be consumed. 
@@ -201,7 +202,7 @@ with `Split` process _S_ :
                  +----+
 ```
 Character classes `[...]` are implemented as alternate choices
-for all the enclosed characters, character ranges and _any character_ wildcard.
+for all the enclosed characters and character ranges.
 
 #### Quantifiers
 
@@ -319,16 +320,58 @@ We will consider a regex of the form `(a?)^n (a*)^n` matching a string of `a^n`
 
 The no. of matches, _M(n),_ is calculated by a dot product
 of two vectors sliced from Pascal's Triangle
-e.g. `M(3) = [1,3,3,1] * [1,3,6,10] = 1+9+18+10 = 38`
 (but this margin is too small to contain a proof :)
 
-Here is the number of traversals _M_ for each value of _n,_
+```
+a?^n  binary counting:  direction /
+a*^n  sum of digits:    direction -
+
+vectors shown for n=3 and n=4
+
+M(3) =   [1,3,3,1] * [1,3,6,10]     =   1+9+18+10   =  38
+
+M(4) = [1,4,6,4,1] * [1,4,10,20,35] = 1+16+60+80+35 = 192
+
++----------------------------------------+
+|(M)n|  count of matches in a?^n or a*^n |
+|    | 0  1  2  3  4   5   6   7   8   9 |                            
++----+-----------------------------------+
+|  1 | 1  1  1  1  1   1   1   1   1   1 |
+|    |         / /                       |
+|  2 | 1  2  3  4  5   6   7   8   9  10 |
+|n   |      / /                          |
+|  3 | 1--3--6-10 15  21  28  36  45  55 |
+|    |   / /                             |
+|  4 | 1--4-10-20-35  56  84 120 165 220 |
+|    |   /                               |
+|    | 1  5 15 35 70 126 210 330 495 715 |
+ ...                 ...
+```
+
+Here is the number of traversals _M(n)_ for each value of _n,_
+and the elapsed time in seconds (s) for _first_ and _all_ matches
+(except for the ~0 timings, which are in microseconds):
 
 ```
 +------+---+---+----+-----+-------+-------+--------+---------+---------+
 |  n   | 1 | 2 |  3 |   4 |     5 |     6 |      7 |       8 |       9 |
 | M(n) | 2 | 8 | 38 | 192 | 1,002 | 5,336 | 28,814 | 157,184 | 864,146 |
 +------+---+---+----+-----+-------+-------+--------+---------+---------+
+|first |                                  | < 1 us |  < 1 us |   0.015 |
+|all   |                                  |  0.250 |   1.485 |   9.625 |
++------+---+---+----+-----+-------+-------+--------+---------+---------+
+
+```
+So about 100,000 matches per second when returning all results,
+and 15 ms to return the first match while 864k traversals 
+are initiated in parallel.
+
+Results are for Windows running on Intel i7-8550U @ 1.80GHz,
+with 4 hardware cores and 8 hardware threads. 
+
+The Erlang shell displays:
+```
+Erlang/OTP 23 [erts-11.1] [source] [64-bit] [smp:8:8] [ds:8:8:10] [async-threads:1]
 ```
 
 ## Usage
