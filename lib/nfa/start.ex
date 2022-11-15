@@ -25,7 +25,7 @@ defmodule Myrex.NFA.Start do
       :nfa_running ->
         start
 
-      {:EXIT, start, reason} ->
+      {:EXIT, ^start, reason} ->
         raise RuntimeError, message: "Compilation failed: #{inspect(reason)}"
     end
   end

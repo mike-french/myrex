@@ -42,18 +42,37 @@ defmodule Myrex.MyrexTest do
     end
 
     test "char range test #{mode}" do
-      re = "[a-d]"
+      re = "[a-dz]"
       re_nfa = build(re, unquote(mode))
 
       execute(re_nfa, "a", :match)
       execute(re_nfa, "c", :match)
       execute(re_nfa, "d", :match)
+      execute(re_nfa, "z", :match)
 
       execute(re_nfa, "", :no_match)
       execute(re_nfa, "^", :no_match)
       execute(re_nfa, "e", :no_match)
       execute(re_nfa, "p", :no_match)
       execute(re_nfa, "abcd", :no_match)
+
+      Myrex.teardown(re_nfa)
+    end
+
+    test "neg char range test #{mode}" do
+      re = "[^0-9p]"
+      re_nfa = build(re, unquote(mode))
+
+      execute(re_nfa, "a", :match)
+      execute(re_nfa, "c", :match)
+      execute(re_nfa, "d", :match)
+      execute(re_nfa, "z", :match)
+
+      execute(re_nfa, "0", :no_match)
+      execute(re_nfa, "2", :no_match)
+      execute(re_nfa, "9", :no_match)
+      execute(re_nfa, "p", :no_match)
+      execute(re_nfa, "01", :no_match)
 
       Myrex.teardown(re_nfa)
     end

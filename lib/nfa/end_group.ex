@@ -1,6 +1,5 @@
 defmodule Myrex.NFA.EndGroup do
   @moduledoc "The process at the end of a group capture expression."
-  import Myrex.Types
 
   alias Myrex.NFA.Proc
 
@@ -12,7 +11,7 @@ defmodule Myrex.NFA.EndGroup do
   @spec attach() :: no_return()
   def attach() do
     receive do
-      {:attach, proc} when is_proc(proc) -> match(Proc.input(proc))
+      {:attach, proc} when is_pid(proc) -> match(proc)
       msg -> raise RuntimeError, message: "Unhandled message #{inspect(msg)}"
     end
   end

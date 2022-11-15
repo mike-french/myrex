@@ -40,10 +40,10 @@ defmodule Myrex.NFA.Split do
     split
   end
 
-  @spec attach(T.proc()) :: no_return()
+  @spec attach(pid()) :: no_return()
   def attach(next) when is_pid(next) do
     receive do
-      {:attach, proc2} when is_proc(proc2) -> match([next, Proc.input(proc2)])
+      {:attach, proc2} when is_pid(proc2) -> match([next, proc2])
       msg -> raise RuntimeError, message: "Unhandled message #{inspect(msg)}"
     end
   end

@@ -122,6 +122,7 @@ defmodule Myrex.Types do
           | :end_sequence
           | :end_group
           | :begin_class
+          | :neg_class
           | :end_class
           | :range_to
           # compound lexical tokens
@@ -143,7 +144,7 @@ defmodule Myrex.Types do
   for example `a-z` or `0-9`.
   """
   @type char_pair() :: {char(), char()}
-  defguard is_cr(cr)
+  defguard is_char_range(cr)
            when is_char(elem(cr, 0)) and
                   is_char(elem(cr, 1)) and
                   elem(cr, 0) < elem(cr, 1)
@@ -158,14 +159,15 @@ defmodule Myrex.Types do
   # note the reuse of token names as AST nodes
 
   @typep branch_node() ::
-           {:char_class, [char() | char_range()]}
-           | {:sequence, [ast()]}
+           {:sequence, [ast()]}
            | {:group, :nocap | capture_name(), [ast()]}
            | {:alternate, [ast()]}
            | {:zero_one, ast()}
            | {:one_more, ast()}
            | {:zero_more, ast()}
            | {:repeat, count2(), ast()}
+           | {:char_class, [char() | char_range()]}
+           | {:char_class_neg, [char() | char_range()]}
 
   @typep leaf_node() :: char() | :any_char
 

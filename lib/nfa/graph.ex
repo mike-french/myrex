@@ -50,6 +50,8 @@ defmodule Myrex.NFA.Graph do
   @spec add_node(pid(), name()) :: pid()
   def add_node(pid, name) when is_pid(pid) do
     if enabled?() do
+      # could add PID to the name here
+      # so that diagram has PID labels
       id = pid2id(pid)
       nodes = Map.put(get_nodes(), id, name)
       Process.put(@nodes, nodes)

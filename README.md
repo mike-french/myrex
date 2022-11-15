@@ -68,6 +68,7 @@ Standard syntax:
 * `(?:` begin group without capture
 * `)` end  group
 * `[`  begin character class
+* `[^`  begin negated character class
 * `]`  end character class
 * `-`  character range
 * `\` escape character
@@ -79,7 +80,7 @@ Escapes:
 
 Binary Data:
 * Strings are processed as binaries
-  \{[Erlang](https://www.erlang.org/doc/efficiency_guide/binaryhandling.html)\]
+  \[[Erlang](https://www.erlang.org/doc/efficiency_guide/binaryhandling.html)\],
   not converted to character lists.
 * Short input strings (< 64B) are copied between processes.
 * Large input strings (>=64B) are kept as a single copy,
@@ -96,7 +97,7 @@ Two execution patterns:
 * Batch - single network that process multiple input strings simultaneously.
 * Oneshot - dedicated independent network is built and torn down for each input. 
 
-Two traversal strategies:
+Two traversal strategies for ambiguous matches:
 * First - return the first match and halt execution.
 * All - wait for all traversals to complete,
   return all captures for ambiguous matches.
@@ -126,7 +127,7 @@ A process subgraph has a single input edge and one or more output edges.
 The subgraph may be a single process that has both an input and 
 one or more outputs.
 
-The NFA is built using a variation of Thomson's Algorithm 
+The NFA is built using a variation of Thompson's Algorithm 
 based on process _combinators._
 A combinator is a function that takes one or more process subgraphs
 and combines them into a single larger graph.
@@ -170,7 +171,7 @@ in --->|Begin|--->| P1 |--->...--->| Pn |--->| End |---> out
 #### Alternate Choice
 
 Combinator for fan-out of alternate matches `P1 | P2 | .. | Pn`
-with Split process _S_ :
+with `Split` process _S_ :
 
 ```
                  +----+
@@ -185,12 +186,14 @@ with Split process _S_ :
                 -| Pn |---> outputs
                  +----+
 ```
+Character classes `[...]` are implemented as alternate choices
+for all the enclosed characters, character ranges and _any character_ wildcard.
 
 #### Quantifiers
 
 Combinator for zero or one repetitions `P?`.
 
-Split node _S_ can bypass the process subgraph _P_ (zero).
+`Split` node _S_ can bypass the process subgraph _P_ (zero).
 
 ```
         +---+
@@ -205,7 +208,7 @@ Split node _S_ can bypass the process subgraph _P_ (zero).
 
 Combinator for one or more repetitions `P+`. 
 
-Split node _S_ can cycle back to the process node _P_ (more).
+`Split` node _S_ can cycle back to the process node _P_ (more).
 The new network only has one output from the split node.
 
 ```
@@ -220,8 +223,8 @@ The new network only has one output from the split node.
 ```
 Combinator for zero or more repetitions `P*`.
 
-Split node _S_ can cycle through the process node _P_ (more).
-Split node _S_ can bypass the process subgraph _P_ (zero).
+`Split` node _S_ can cycle through the process node _P_ (more).
+The split node can bypass the process subgraph _P_ (zero).
 The new network only has one output from the split node.
 
 ```
@@ -291,12 +294,13 @@ The first match is non-deterministic - the clue is in the name _*N*_ FA :)
 The actual outcome depends on the Erlang BEAM scheduler.
 In practice, it appears that non-greedy execution is favoured.
 If the regular expression is not ambiguous, then the option should be _first,_
-because there may be a long delay to wait for all traversals to finish.
+because there may be a long delay to wait for all failure traversals to finish.
 
-For example: let's say the exponential operator `^` means repeat 
-characters and groups, so `a^4` means `aaaa` and `(a?)^4` means `a?a?a?a?`.
+For example: let the exponential operator `^` mean repeat 
+characters and groups in a string, 
+so `a^4` means `aaaa` and `(a?)^4` means `a?a?a?a?`.
 We will consider a regex of the form `(a?)^n (a*)^n` matching a string of `a^n`
-(a wild exaggeration from the example in
+(a highly ambiguous exaggeration from the example in
 \[[Cox](https://swtch.com/~rsc/regexp/regexp1.html)\]).
 
 The no. of matches, _M(n),_ is calculated by a dot product
@@ -325,22 +329,22 @@ Options are passed as `Keyword` pairs.
 
 The currently supported keys and values are:
 
-`:return` the capture values to return in match results:
+`:capture` the values to return in match results:
 * `:all` (default) - all captures are returned, 
-  except those explicitly excluded using `(?:...)` group syntax.
+  except those explicitly excluded using `(?:...)` anonymous group syntax.
 * _names_ - a list of names (1-based integers) to return a capture value.
-* `:none` - no captures are returned.
+* `:none` - no captures are returned, except the key `0` for the whole string.
 
 `:return` the type for group capture results:
 * `:index` (default) - the raw `{ position, length }` reference into the input string.
 * `:binary` - the actual substring of the capture.
 
-`:dotall` (boolean) (default `false`) - 
+`:dotall` (boolean, default `false`) - 
   force the _any character_ wildcard `.` to include newline `\n`.
   
-`:timeout` (default 1000ms) - the timeout (ms) for executing a string match
+`:timeout` (integer, default 1000ms) - the timeout (ms) for executing a string match.
 
-`:multiple` decide bahviour when the regular expression is ambiguous:
+`:multiple` decide behviour when the regular expression is ambiguous:
 * `:first` (default) - stop at the first successful match, return the capture.
   If it is a oneshot execution, then teardown the NFA process network.
   If it is a batch execution, then just halt the `Executor` process.

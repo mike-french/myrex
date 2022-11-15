@@ -87,6 +87,8 @@ defmodule Myrex.Compiler do
   defp ast2nfa({:repeat, nrep, node}, opts) do
     # TODO - implement native repeat process in NFA
     # this lazy code makes multiple copies of the subgraph 
+    # TODO - implement range repeats to handle all quantifiers:
+    # bounded {N,M} and unbounded {N,} 
     1..nrep
     |> Enum.map(fn _ -> ast2nfa(node, opts) end)
     |> NFA.sequence()
@@ -99,12 +101,38 @@ defmodule Myrex.Compiler do
   end
 
   defp ast2nfa({:char_class, ccs}, opts) do
-    ccs
-    |> Enum.map(&ast2nfa(&1, opts))
-    |> NFA.alternate("[]")
+    # regular char class is alternate OR choice of elements
+    ccs |> Enum.map(&cc2nfa(&1, opts, false)) |> NFA.alternate("[]")
+  end
+
+  defp ast2nfa({:char_class_neg, ccs}, opts) do
+    # negated char class is AND sequence of negated elements
+    ccs |> Enum.map(&cc2nfa(&1, opts, true)) |> NFA.and_sequence()
   end
 
   defp ast2nfa(ast, _) do
     raise RuntimeError, message: "Error: no nfa clause for #{ast}"
+  end
+
+  # convert character class leaf nodes to Match nodes
+  @spec cc2nfa(T.ast(), T.options(), boolean()) :: pid()
+
+  defp cc2nfa(c, _opts, neg?) when is_integer(c) do
+    NFA.match_char(c, neg?)
+  end
+
+  defp cc2nfa({:char_range, c1, c2}, _opts, neg?) do
+    NFA.match_char_range({c1, c2}, neg?)
+  end
+
+  defp cc2nfa(:any_char, opts, neg?) do
+    # always pass or ^fail
+    opts
+    |> Keyword.get(:dotall, false)
+    |> NFA.match_any_char(neg?)
+  end
+
+  defp cc2nfa(ast, _, _) do
+    raise RuntimeError, message: "Error: no nfa clause for character class #{ast}"
   end
 end

@@ -31,8 +31,8 @@ defmodule Myrex.NFA do
   alias Myrex.Types, as: T
 
   alias Myrex.NFA.BeginGroup
+  alias Myrex.NFA.EndAnd
   alias Myrex.NFA.EndGroup
-  alias Myrex.NFA.Graph
   alias Myrex.NFA.Match
   alias Myrex.NFA.Proc
   alias Myrex.NFA.Split
@@ -140,6 +140,24 @@ defmodule Myrex.NFA do
   end
 
   @doc """
+  Combinator for an AND sequence of peek lookahead Match nodes.
+  The peeking Match nodes are created in a negated character class.
+
+  ```
+          +--+             +--+    +-----+
+   in --->|M1|---> ... --->|Mn|--->| End |---> out
+          +--+             +--+    | AND |
+                                   +-----+
+  ```
+  """
+
+  @spec and_sequence(T.procs()) :: T.proc()
+
+  def and_sequence(procs) when is_list(procs) do
+    sequence(procs ++ [EndAnd.init()])
+  end
+
+  @doc """
   Combinator for sequence of process networks _P1..Pn_ :
 
   ```
@@ -188,9 +206,11 @@ defmodule Myrex.NFA do
   # --------------------------------
 
   @doc "Match a specific character."
-  @spec match_char(char()) :: pid()
-  def match_char(c) do
-    Match.init(&(&1 == c), IO.chardata_to_string([?', c, ?']))
+  @spec match_char(char(), boolean()) :: pid()
+  def match_char(char, neg? \\ false) do
+    accept? = inv(fn c -> c == char end, neg?)
+    # negation turns Match into peek look ahead
+    Match.init(accept?, neg?, IO.chardata_to_string(caret([?', char, ?'], neg?)))
   end
 
   @doc """
@@ -201,17 +221,29 @@ defmodule Myrex.NFA do
   * `false` - any character will match, excluding newline. 
   """
 
-  @spec match_any_char(boolean()) :: pid()
-  def match_any_char(dotall?) do
-    Match.init(fn c -> dotall? or c != ?\n end, ".")
+  @spec match_any_char(boolean(), boolean()) :: pid()
+  def match_any_char(dotall?, neg? \\ false) do
+    # anychar wildcard '.' not allowed in negated character class?
+    accept? = inv(fn c -> dotall? or c != ?\n end, neg?)
+    # negation turns Match into peek look ahead
+    Match.init(accept?, neg?, caret('.', neg?))
   end
 
   @doc "Match any character in the range between two characters (inclusive)."
-  @spec match_char_range(T.char_pair()) :: pid()
-  def match_char_range({c1, c2} = cr) when is_cr(cr) do
-    Match.init(
-      fn c -> c1 <= c and c <= c2 end,
-      IO.chardata_to_string([c1, ?-, c2])
-    )
+  @spec match_char_range(T.char_pair(), boolean()) :: pid()
+  def match_char_range({c1, c2} = cr, neg? \\ false) when is_char_range(cr) do
+    accept? = inv(fn c -> c1 <= c and c <= c2 end, neg?)
+    # negation turns Match into peek look ahead
+    Match.init(accept?, neg?, IO.chardata_to_string(caret([c1, ?-, c2], neg?)))
   end
+
+  # optionally invert the acceptor to be NOT the original result
+  @spec inv(T.acceptor(), boolean()) :: T.acceptor()
+  defp inv(accept?, false), do: accept?
+  defp inv(accept?, true), do: fn c -> not accept?.(c) end
+
+  # optionally prefix the label with '^' for negation
+  @spec caret(charlist(), boolean()) :: charlist()
+  defp caret(chars, false), do: chars
+  defp caret(chars, true), do: [?^ | chars]
 end

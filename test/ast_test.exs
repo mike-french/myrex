@@ -39,6 +39,8 @@ defmodule Myrex.ASTTest do
   test "char classes" do
     do_ast("[_A-Z]", {:char_class, [?_, {:char_range, ?A, ?Z}]})
     do_ast("[\\0-\\n]", {:char_class, [{:char_range, ?\0, ?\n}]})
+
+    do_ast("[^0-9]", {:char_class_neg, [{:char_range, ?0, ?9}]})
   end
 
   test "choice" do

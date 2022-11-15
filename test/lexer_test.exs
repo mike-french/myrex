@@ -41,14 +41,20 @@ defmodule Myrex.LexerTest do
 
   test "lex_class_test" do
     equal("[", [:begin_class])
+    equal("[^", [:begin_class, :neg_class])
     equal("]", [:end_class])
     equal("-", [:range_to])
     equal("[a-z]", [:begin_class, ?a, :range_to, ?z, :end_class])
 
-    equal(
-      "[_a-zA-Z]",
-      [:begin_class, ?_, ?a, :range_to, ?z, ?A, :range_to, ?Z, :end_class]
-    )
+    equal("[_a-zA-Z]", [:begin_class, ?_, ?a, :range_to, ?z, ?A, :range_to, ?Z, :end_class])
+
+    equal("[^0-9]", [:begin_class, :neg_class, ?0, :range_to, ?9, :end_class])
+
+    # no need to escape '^' in char class - accepted as char after 1st position??
+    equal("[a^]]", [:begin_class, ?a, ?^, :end_class, :end_class])
+
+    # illegal, but the parser's job to find it
+    equal("[-]", [:begin_class, :range_to, :end_class])
   end
 
   test "lex_esc_test" do
@@ -61,6 +67,8 @@ defmodule Myrex.LexerTest do
     equal("\\nb", [?\n, ?b])
     equal("\t\r", [?\t, ?\r])
     equal("\\t\\r", [?\t, ?\r])
+
+    equal("[\\[\\^\\-\\]]", [:begin_class, ?[, ?^, ?-, ?], :end_class])
 
     bad_lex("\\q")
     bad_lex("\\")

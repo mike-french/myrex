@@ -7,8 +7,6 @@
 
 * Line matching $ ^
 
-* Negated character class ^
-
 * More Elixir Regex (PCRE) options
     
 * Push files down into myrex directory

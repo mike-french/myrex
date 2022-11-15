@@ -98,8 +98,13 @@ defmodule Myrex.Parser do
   defp parse([{:repeat, nrep} | toks], [node | stack]),
     do: parse(toks, [{:repeat, nrep, node} | stack])
 
+  defp parse([:begin_class, :neg_class | toks], stack) do
+    {rest, cc} = parse_cc(toks, [], true)
+    parse(rest, [cc | stack])
+  end
+
   defp parse([:begin_class | toks], stack) do
-    {rest, cc} = parse_cc(toks, [])
+    {rest, cc} = parse_cc(toks, [], false)
     parse(rest, [cc | stack])
   end
 
@@ -137,23 +142,38 @@ defmodule Myrex.Parser do
   defp parse([_ | _], _), do: raise(ArgumentError, message: "Parse error: illegal expression")
 
   # special restricted parser within character class
-  @spec parse_cc(T.tokens(), [char() | T.char_pair()]) ::
-          {T.tokens(), {:char_class, [char() | T.char_range()]}}
+  @spec parse_cc(T.tokens(), [char() | T.char_pair()], boolean()) ::
+          {T.tokens(), {:char_class | :char_class_neg, [char() | T.char_range()]}}
 
-  defp parse_cc([c1, :range_to, c2 | toks], ccs) when is_char(c1) and is_char(c2) do
+  defp parse_cc([c1, :range_to, c2 | toks], ccs, neg?) when is_char(c1) and is_char(c2) do
     if c1 >= c2, do: raise(ArgumentError, message: "Parse error: illegal char range")
-    parse_cc(toks, [{:char_range, c1, c2} | ccs])
+    parse_cc(toks, [{:char_range, c1, c2} | ccs], neg?)
   end
 
-  defp parse_cc([c | toks], ccs) when is_char(c), do: parse_cc(toks, [c | ccs])
+  defp parse_cc([c | toks], ccs, neg?) when is_char(c), do: parse_cc(toks, [c | ccs], neg?)
 
-  defp parse_cc([:end_class | _], []),
-    do: raise(ArgumentError, message: "Parse error: empty char class")
+  defp parse_cc([:any_char | toks], ccs, neg?) do
+    # error???
+    IO.puts("Warning: anychar wildcard '.' in character class - always passes or ^fails.")
+    parse_cc(toks, [:any_char | ccs], neg?)
+  end
 
-  defp parse_cc([:end_class | toks], ccs), do: {toks, {:char_class, Enum.reverse(ccs)}}
-  defp parse_cc([_ | _], _), do: raise(ArgumentError, message: "Parse error: illegal char class")
+  defp parse_cc([:begin_class | _], _, _neg?),
+    do: raise(ArgumentError, message: "Parse error: unescaped '[' in character class")
 
-  defp parse_cc([], _),
+  defp parse_cc([:neg_class | _], _, _neg?),
+    do: raise(ArgumentError, message: "Parse error: unescaped '^' in character class")
+
+  defp parse_cc([:end_class | _], [], _neg?),
+    do: raise(ArgumentError, message: "Parse error: '[]' empty character class")
+
+  defp parse_cc([:end_class | toks], ccs, false), do: {toks, {:char_class, Enum.reverse(ccs)}}
+  defp parse_cc([:end_class | toks], ccs, true), do: {toks, {:char_class_neg, Enum.reverse(ccs)}}
+
+  defp parse_cc([_ | _], _, _),
+    do: raise(ArgumentError, message: "Parse error: illegal char class")
+
+  defp parse_cc([], _, _),
     do: raise(ArgumentError, message: "Parse error: missing end of char class ']'")
 
   # read a fixed number of nodes back from the stack

@@ -32,6 +32,15 @@ defmodule Myrex.Lexer do
 
   @spec re2tok(charlist(), T.tokens(), T.count()) :: {T.tokens(), T.count()}
 
+  defp re2tok([?\\, c | t], toks, g) when not is_alpha(c), do: re2tok(t, [c | toks], g)
+
+  defp re2tok([?\\, ?e | t], toks, g), do: re2tok(t, [?\e | toks], g)
+  defp re2tok([?\\, ?f | t], toks, g), do: re2tok(t, [?\f | toks], g)
+  defp re2tok([?\\, ?n | t], toks, g), do: re2tok(t, [?\n | toks], g)
+  defp re2tok([?\\, ?r | t], toks, g), do: re2tok(t, [?\r | toks], g)
+  defp re2tok([?\\, ?t | t], toks, g), do: re2tok(t, [?\t | toks], g)
+  defp re2tok([?\\, ?v | t], toks, g), do: re2tok(t, [?\v | toks], g)
+
   defp re2tok([?. | t], toks, g), do: re2tok(t, [:any_char | toks], g)
   defp re2tok([?? | t], toks, g), do: re2tok(t, [:zero_one | toks], g)
   defp re2tok([?+ | t], toks, g), do: re2tok(t, [:one_more | toks], g)
@@ -40,8 +49,9 @@ defmodule Myrex.Lexer do
 
   defp re2tok([?(, ??, ?: | t], toks, g), do: re2tok(t, [{:begin_group, :nocap} | toks], g)
   defp re2tok([?( | t], toks, g), do: re2tok(t, [{:begin_group, g} | toks], g + 1)
-
   defp re2tok([?) | t], toks, g), do: re2tok(t, [:end_group | toks], g)
+
+  defp re2tok([?[, ?^ | t], toks, g), do: re2tok(t, [:neg_class, :begin_class | toks], g)
   defp re2tok([?[ | t], toks, g), do: re2tok(t, [:begin_class | toks], g)
   defp re2tok([?] | t], toks, g), do: re2tok(t, [:end_class | toks], g)
   defp re2tok([?- | t], toks, g), do: re2tok(t, [:range_to | toks], g)
@@ -53,14 +63,6 @@ defmodule Myrex.Lexer do
 
   defp re2tok([?} | _], _, _), do: raise(ArgumentError, message: "Unmatched end repeat '}'")
   defp re2tok([c | t], toks, g) when c != ?\\, do: re2tok(t, [c | toks], g)
-  defp re2tok([?\\, c | t], toks, g) when not is_alpha(c), do: re2tok(t, [c | toks], g)
-
-  defp re2tok([?\\, ?e | t], toks, g), do: re2tok(t, [?\e | toks], g)
-  defp re2tok([?\\, ?f | t], toks, g), do: re2tok(t, [?\f | toks], g)
-  defp re2tok([?\\, ?n | t], toks, g), do: re2tok(t, [?\n | toks], g)
-  defp re2tok([?\\, ?r | t], toks, g), do: re2tok(t, [?\r | toks], g)
-  defp re2tok([?\\, ?t | t], toks, g), do: re2tok(t, [?\t | toks], g)
-  defp re2tok([?\\, ?v | t], toks, g), do: re2tok(t, [?\v | toks], g)
 
   # defp re2tok([?\\, ?x, ?{ | t], toks, g) do
   #   {rest, hex} = hex(t, [])
@@ -134,7 +136,7 @@ defmodule Myrex.Lexer do
   defp tok2re([{:begin_group, :nocap} | toks], re),
     do: tok2re(toks, [?(, ??, ?: | re])
 
-  defp tok2re([{:begin_group, _} | toks], re), do: tok2re(toks, [chr(:begin_group) | re])
+  defp tok2re([{:begin_group, _} | toks], re), do: tok2re(toks, [?( | re])
 
   defp tok2re([{:repeat, nrep} | toks], re) do
     repeat = [?}] ++ Enum.reverse(Integer.to_charlist(nrep)) ++ [?{]
@@ -155,6 +157,7 @@ defmodule Myrex.Lexer do
   defp chr(:begin_group), do: ?(
   defp chr(:end_group), do: ?)
   defp chr(:begin_class), do: ?[
+  defp chr(:neg_class), do: ?^
   defp chr(:end_class), do: ?]
   defp chr(:range_to), do: ?-
   defp chr(:begin_repeat), do: ?{

@@ -13,7 +13,7 @@ defmodule Myrex.NFA.BeginGroup do
   @spec attach(T.capture_name()) :: no_return()
   def attach(name) do
     receive do
-      {:attach, proc} when is_proc(proc) -> match(name, Proc.input(proc))
+      {:attach, proc} when is_pid(proc) -> match(name, proc)
       msg -> raise RuntimeError, message: "Unhandled message #{inspect(msg)}"
     end
   end

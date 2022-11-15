@@ -173,11 +173,32 @@ defmodule Myrex.ParserTest do
       do_par("[A-Z]", {:char_class, [{:char_range, ?A, ?Z}]})
       do_par("[_A-Z!]", {:char_class, [?_, {:char_range, ?A, ?Z}, ?!]})
 
+      # anychar allowed in character class? always passes
+      do_par("[.]", {:char_class, [:any_char]})
+
+      do_par("[^#0-9~]", {:char_class_neg, [?#, {:char_range, ?0, ?9}, ?~]})
+
+      # anychar allowed in negated character class? never passes
+      do_par("[^.]", {:char_class_neg, [:any_char]})
+
+      # escape '[' in char class
+      do_par("[\\[\\^\\-\\]]", {:char_class, [?[, ?^, ?-, ?]]})
+
+      # no need to escape '[' '^' in char class??
+      do_par("[a^]", {:char_class, [?a, ?^]})
+      do_par("[^^]", {:char_class_neg, [?^]})
+      do_par("[^a^]", {:char_class_neg, [?a, ?^]})
+
       bad_par("[")
       bad_par("]")
       bad_par("[]")
+      bad_par("[]]")
+      bad_par("[-z]")
+      bad_par("[a-]")
       bad_par("[a*]")
       bad_par("[z-a]")
+
+      bad_par("[^]")
     end
 
     test "par_group_test" do

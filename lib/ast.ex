@@ -47,6 +47,7 @@ defmodule Myrex.AST do
   def node2re({:zero_more, node}), do: [node2re(node), ?*]
   def node2re({:repeat, r, node}), do: [node2re(node), ?{, Integer.to_string(r), ?}]
   def node2re({:char_class, ccs}), do: [?[, Enum.map(ccs, &cc2re(&1)), ?]]
+  def node2re({:char_class_neg, ccs}), do: [?[, ?^, Enum.map(ccs, &cc2re(&1)), ?]]
 
   # Convert a character class element to text format.
   @spec cc2re(char() | T.char_pair()) :: IO.chardata()
@@ -145,15 +146,19 @@ defmodule Myrex.AST do
     ]
   end
 
-  defp ast2str({:char_class, ccs}, d) do
+  defp ast2str({:char_class, ccs}, d), do: do_cc2str(ccs, d, "[\n")
+  defp ast2str({:char_class_neg, ccs}, d), do: do_cc2str(ccs, d, "[^\n")
+
+  defp ast2str(x, _), do: raise(ArgumentError, message: "Illegal AST node '#{inspect(x)}'")
+
+  # convert character class to string using positive or negative opening symbols
+  defp do_cc2str(ccs, d, open) do
     [
-      [indent(d), "[\n"],
+      [indent(d), open],
       Enum.map(ccs, &cc2str(&1, d + 1)),
       [indent(d), "]"]
     ]
   end
-
-  defp ast2str(x, _), do: raise(ArgumentError, message: "Illegal AST node '#{x}'")
 
   # Convert a character class element to indented text format.
   # A char class element is a char range or literal char.
@@ -163,6 +168,7 @@ defmodule Myrex.AST do
   # Convert a character class element to text format.
   @spec cc2str(char() | T.char_range()) :: IO.chardata()
   defp cc2str({:char_range, c1, c2}), do: to_string([esc(c1), ?-, esc(c2)])
+  defp cc2str(:any_char), do: "."
   defp cc2str(c) when is_char(c), do: esc(c)
 
   # escape individual characters 
