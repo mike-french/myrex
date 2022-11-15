@@ -78,27 +78,28 @@ Escapes:
 * `\uHHHH` escape for Unicode codepoint _HHHH_ with 4 hex digits
 
 Binary Data:
-* strings are preserved as binaries
+* Strings are processed as binaries
   \{[Erlang](https://www.erlang.org/doc/efficiency_guide/binaryhandling.html)\]
-* short input strings (< 64B) are copied between processes
-* large input strings (>=64B) are kept as a single copy,
-  with all processes using references into shared memory
+  not converted to character lists.
+* Short input strings (< 64B) are copied between processes.
+* Large input strings (>=64B) are kept as a single copy,
+  with all processes using references into shared heap memory.
 
-Stages of pre-processing:
-* compiling a REGEX into an NFA:
-  * lexical processing of the REGEX to a token sequence
-  * parsing the tokens into an AST
-  * traversing the AST to build an NFA process network
-* matching an input string against an NFA process network
+Stages of processing:
+* Compiling a REGEX into an NFA:
+  * Lexical processing of the REGEX to a token sequence.
+  * Parsing the tokens into an AST.
+  * Traversing the AST to build an NFA process network.
+* Matching an input string against an NFA process network.
 
 Two execution patterns:
-* single network that process multiple input strings simultaneously 
-* dedicated independent network is built and torn down for each input 
+* Batch - single network that process multiple input strings simultaneously.
+* Oneshot - dedicated independent network is built and torn down for each input. 
 
 Two traversal strategies:
-* return the first match and stop execution
-* wait for all traversals to complete,
-  return all captures for ambiguous matches
+* First - return the first match and halt execution.
+* All - wait for all traversals to complete,
+  return all captures for ambiguous matches.
 
 ### Captures
 
@@ -111,10 +112,11 @@ to capture valules.
 Names are the 1-based integer order 
 of the opening `(` in the REGEX. 
 The 0-index capture always refers to the whole input string.
+In future, explicitly named captures will be supported.
 
 Capture values can be represented in two ways:
 * The `{position, length}` reference into the input string.
-* The actual substring matched by the group.
+* The actual substring (binary) matched by the group.
 
 ## NFA Design
 
@@ -134,6 +136,8 @@ from smaller operator subgraphs,
 grounded in atomic character matchers
 \[[Cox](https://swtch.com/~rsc/regexp/regexp1.html)\].
 
+### Combinators
+
 There are four processes used by combinators
 to implement parts of the AST as process subgraphs:
 * Branch nodes (quantifiers and alternate choice) 
@@ -144,30 +148,29 @@ to implement parts of the AST as process subgraphs:
   to do the actual matching of individual characters, 
   character ranges and character classes.
   
-### Sequence and Group
+#### Sequence and Group
 
-Combinator for a sequence of process networks `P1 P2 .. Pn` :
+Combinator for a sequence of process networks `P1 P2 .. Pn`:
 
 ```
        +----+             +----+
 in --->| P1 |---> ... --->| Pn | ---> outputs
        +----+             +----+
 ```
-Combinator for a group capture around a sequence `(P1 P2 .. Pn)`.
+Combinator for a group capture around a sequence `(P1 P2 .. Pn)`:
 
 ```
-       +-----+    +--+             +--+    +-----+
-in --->|Begin|--->|P1|---> ... --->|Pn|--->| End |---> out
-       |Group|    +--+             +--+    |Group|
-       +-----+                             +-----+
+       +-----+    +----+           +----+    +-----+
+in --->|Begin|--->| P1 |--->...--->| Pn |--->| End |---> out
+       |Group|    +----+           +----+    |Group|
+       +-----+                               +-----+
 ```
 
   
-### Alternate Choice
+#### Alternate Choice
 
-Combinator for fan-out of alternate matches `P1 | P2 | .. | Pn`.
-
-For Split process _S_ and processes _P1 .. Pn_ :
+Combinator for fan-out of alternate matches `P1 | P2 | .. | Pn`
+with Split process _S_ :
 
 ```
                  +----+
@@ -183,7 +186,7 @@ For Split process _S_ and processes _P1 .. Pn_ :
                  +----+
 ```
 
-### Quantifiers
+#### Quantifiers
 
 Combinator for zero or one repetitions `P?`.
 
@@ -232,6 +235,83 @@ The new network only has one output from the split node.
         +---+
 ```
 
+### Interface Processes
+  
+There are two process used for the 
+overall input and output of the NFA process network:
+* `Start` - the initial process where strings are injected for matching.
+* `Success` - the final process where successful matches are emitted.
+
+The `Start` process also implements construction of the NFA
+by spawning and connecting child processes. 
+The child processes are _linked_ to the `Start` process,
+so the whole network can be torn down after use, or on error.
+
+The process network has a lifecycle based on _batch_ or _oneshot_ patterns.
+
+### Execution Processes
+
+The matching of individual input strings is managed by an 
+`Executor` process instance.
+An `Executor` is created for each input string, 
+and exits when the matching process completes.  
+
+The `Executor` passes the input string to the `Start` process,
+monitors the number of active traversals, 
+receives notification of failed matches,
+and may get a successful match result from the `Success` process.
+The `Executor` exits after the result is returned to the calling client.
+
+A _oneshot_ `Executor` builds a private NFA process network,
+manages execution for the input string, 
+and tears down the network at the end of the match.
+
+A _batch_ `Executor` just re-uses an existing NFA process network
+and does not tear the network down at the end.
+
+## Multiple Matches
+
+Some regular expressions are ambiguous and will have multiple matches, 
+For example, the string `a` matches the regex `(a?)(a*)` in 2 different ways,
+and the resulting captures will have different values: `"a",""` and `"","a"`.
+
+The outcome for ambiguous regexes is usually 
+based on whether the operators are _greedy_ or not. 
+The Myrex implementation has local atomic operators 
+that execute in parallel as an NFA, so they cannot choose 
+`greedy` or `non-greedy` behaviour.
+
+However, there is an option to choose how multiple matches are handled:
+* _First_ - stop at the first successful match and return the capture.
+  If it is a oneshot execution, then teardown the NFA process network.
+  If it is a batch execution, then just halt the `Executor` process.
+* _All_ - wait for all traversals to complete and return all possible captures.
+
+The first match is non-deterministic - the clue is in the name _*N*_ FA :)
+The actual outcome depends on the Erlang BEAM scheduler.
+In practice, it appears that non-greedy execution is favoured.
+If the regular expression is not ambiguous, then the option should be _first,_
+because there may be a long delay to wait for all traversals to finish.
+
+For example: let's say the exponential operator `^` means repeat 
+characters and groups, so `a^4` means `aaaa` and `(a?)^4` means `a?a?a?a?`.
+We will consider a regex of the form `(a?)^n (a*)^n` matching a string of `a^n`
+(a wild exaggeration from the example in
+\[[Cox](https://swtch.com/~rsc/regexp/regexp1.html)\]).
+
+The no. of matches, _M(n),_ is calculated by a dot product
+of two vectors sliced from Pascal's Triangle
+e.g. `M(3) = [1,3,3,1] * [1,3,6,10] = 1+9+18+10 = 38`
+(but this margin is too small to contain a proof :)
+
+Here is the number of traversals _M_ for each value of _n,_
+
+```
++------+---+---+----+-----+-------+-------+--------+---------+---------+
+|  n   | 1 | 2 |  3 |   4 |     5 |     6 |      7 |       8 |       9 |
+| M(n) | 2 | 8 | 38 | 192 | 1,002 | 5,336 | 28,814 | 157,184 | 864,146 |
++------+---+---+----+-----+-------+-------+--------+---------+---------+
+```
 
 ## Usage
 
@@ -265,49 +345,6 @@ The currently supported keys and values are:
   If it is a oneshot execution, then teardown the NFA process network.
   If it is a batch execution, then just halt the `Executor` process.
 * `:all` - wait for all traversals to complete and return all possible captures.
-
-## Multiple Matches
-
-Some regular expressions are ambiguous and will have multiple matches, 
-For example, the string `a` matches the regex `(a?)(a*)` in 2 different ways,
-and the resulting captures will have different values: `"a",""` and `"","a"`.
-
-The outcome for ambiguous regexes is usually 
-based on whether the operators are _greedy_ or not. 
-The Myrex implementation has local atomic operators 
-that execurte in parallel as an NFA, so they cannot choose 
-`greedy` or `non-greedy` behaviour.
-
-However, there is an option to choose how multiple matches are handled:
-* _first_ - stop at the first successful match and return the capture.
-  If it is a oneshot execution, then teardown the NFA process network.
-  If it is a batch execution, then just halt the `Executor` process.
-* `:all` - wait for all traversals to complete and return all possible captures.
-
-The first match is non-deterministic - the clue is in the name _*N*_ FA :)
-The actual outcome depends on the Erlang BEAM scheduler.
-In practice, it looks like non-greedy execution is favoured.
-If the regular expression is not ambiguous, then the option should be `:first`,
-because there may be a large delay to wait for all traversals to finish.
-
-For example: let's say the exponential operator means repeat 
-characters and groups, so `a^4` means `aaaa` and `a?^4` means `a?a?a?a?`.
-We will consider a regex of the form `(a?)^n (a*)^n` matching a string of `a^n`
-(an wild exaggeration from the example in
-\[[Cox](https://swtch.com/~rsc/regexp/regexp1.html)\]).
-The no. of matches, _M(n),_ is calculated by a dot product
-of two vectors sliced from Pascal's Triangle
-e.g. `M(3) = [1,3,3,1] * [1,3,6,10] = 1+9+18+10 = 38`
-(but this margin is too small to contain a proof :)
-
-Here is the number of traversals _M_ for each value of _n,_
-
-```
-+------+---+---+----+-----+-------+-------+--------+---------+---------+
-|  n   | 1 | 2 |  3 |   4 |     5 |     6 |      7 |       8 |       9 |
-| M(n) | 2 | 8 | 38 | 192 | 1,002 | 5,336 | 28,814 | 157,184 | 864,146 |
-+------+---+---+----+-----+-------+-------+--------+---------+---------+
-```
 
 
 ### Examples

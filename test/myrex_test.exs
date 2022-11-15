@@ -186,7 +186,7 @@ defmodule Myrex.MyrexTest do
       #   n   1  2   3    4      5      6       7        8        9
       # M(n)  2  8  38  192  1,002  5,336  28,814  157,184  864,146
       #
-      n = 9
+      n = 4
       opts = @default_opts
       {re, str} = dup(n)
       re_nfa = build(re, unquote(mode))
