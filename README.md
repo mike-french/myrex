@@ -1,5 +1,5 @@
 
-# myrex - MY Regular Expression in eliXir
+# myrex - MY Regular Expressions in eliXir
 
 An Elixir library for matching strings against regular expressions (REGEX).
 
@@ -139,12 +139,14 @@ grounded in atomic character matchers
 
 ### Combinators
 
-There are four processes used by combinators
+There are five processes used by combinators
 to implement parts of the AST as process subgraphs:
 * Branch nodes (quantifiers and alternate choice) 
   use `Split` to clone (fan out) traversals 
   across 2 or more downstream subgraphs.
 * Groups use `BeginGroup` and `EndGroup` to record captures.
+* Negated character classes use `EndAnd` to 
+  advance the input after a sequence of peek matches.
 * Leaf nodes use `Match` with an _acceptor_ function
   to do the actual matching of individual characters, 
   character ranges and character classes.
@@ -166,7 +168,19 @@ in --->|Begin|--->| P1 |--->...--->| Pn |--->| End |---> out
        |Group|    +----+           +----+    |Group|
        +-----+                               +-----+
 ```
+ Combinator for an AND sequence of peek lookahead matching nodes.
+ The peeking nodes are created in a negated character class,
+ where all tests must pass for the first character of input,
+ but the character must not be consumed. 
+ At the end of the sequence, when all matches have passed,
+ the character must be consumed from input.
 
+  ```
+          +--+             +--+    +-----+
+   in --->|M1|---> ... --->|Mn|--->| End |---> out
+          +--+             +--+    | AND |
+                                   +-----+
+  ```
   
 #### Alternate Choice
 
