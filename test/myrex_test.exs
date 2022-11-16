@@ -197,14 +197,7 @@ defmodule Myrex.MyrexTest do
     end
 
     test "exponential matches #{mode}" do
-      # match a^n with (a?)^n (a*)^n
-      # no. of matches, M(n) is calculated by a dot product
-      # of two vectors sliced from Pascal's Triangle
-      # e.g. M(3) = [1,3,3,1] . [1,3,6,10] = 1+9+18+10 = 38
-      #
-      #   n   1  2   3    4      5      6       7        8        9
-      # M(n)  2  8  38  192  1,002  5,336  28,814  157,184  864,146
-      #
+      # match a^n against (a?)^n (a*)^n
       n = 4
       opts = @default_opts
       {re, str} = dup(n)
@@ -223,6 +216,7 @@ defmodule Myrex.MyrexTest do
   end
 
   defp dup(n), do: {"(#{dup('a?', n)})(#{dup('a*', n)})", dup(?a, n)}
+
   defp dup(chars, n), do: chars |> List.duplicate(n) |> List.flatten() |> to_string()
 
   # optionally compile the regular expression to an NFA process network

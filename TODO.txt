@@ -8,15 +8,15 @@
 * Line matching $ ^
 
 * More Elixir Regex (PCRE) options
-    
-* Push files down into myrex directory
 
 * Named groups (?<name>...) or (?'name'...)
 
 * Process behaviour? init, attach, match
 
-* Process runtime monitoring and assert eventually
+* Process runtime monitoring 
   
 * Clarify behaviour of top-level RE as string
 
 * Unicode escapes in the RE, with all string conversions
+
+* Performance tests
