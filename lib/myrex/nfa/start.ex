@@ -4,69 +4,62 @@ defmodule Myrex.NFA.Start do
   The start process is the entry point for traversals to match input strings.
   """
 
+  import Myrex.Types
   alias Myrex.Types, as: T
 
   alias Myrex.NFA.Graph
   alias Myrex.NFA.Proc
 
   @doc """
+  Spawn a start process.
   Create the NFA process network as a collection of spawned linked child processes.
-  Act as the start node for traversing the network to parse input strings.
+  Act as the initial node for traversing the network to parse input strings.
 
   When the start process receives a `:teardown` message, 
   the builder exits normally and the linked NFA processes will exit.
   """
   @spec init(T.builder(), T.maybe(String.t())) :: pid()
-  def init(builder, gname \\ nil) when is_function(builder, 0) do
+  def init(builder, nil) when is_function(builder, 0) do
     Process.flag(:trap_exit, true)
-    start = spawn_link(__MODULE__, :build, [builder, gname, self()])
+    proc_init(builder, nil)
+  end
 
-    receive do
-      :nfa_running ->
-        start
-
-      {:EXIT, ^start, reason} ->
-        raise RuntimeError, message: "Compilation failed: #{inspect(reason)}"
-    end
+  def init(builder, gname) when is_function(builder, 0) when is_binary(gname) do
+    Process.flag(:trap_exit, true)
+    # enable graph now to capture the node for the start process
+    Graph.enable()
+    proc_init(builder, gname)
   end
 
   @spec build(T.builder(), T.maybe(String.t()), pid()) :: no_return()
 
-  def build(builder, nil, client) do
-    # run the builder in the start process so that 
-    # all NFA processes are linked to the start process
-    Graph.disable()
+  def build(builder, nil, client) when is_function(builder, 0) do
     nfa = builder.()
     send(client, :nfa_running)
     nfa(nfa)
   end
 
-  def build(builder, gname, client) do
-    Graph.enable()
-    Graph.add_node(self(), "start")
-
+  def build(builder, gname, client) when is_function(builder, 0) and is_binary(gname) do
     nfa = builder.()
-    # start-nfa connection does not use Proc.connect
-    # so explicitly add the graph edge here
-    Graph.add_edge(self(), Proc.input(nfa))
+    # connect and wait for connection
+    Proc.connect_to(nfa)
+    send(client, :nfa_running)
 
     # graph = Graph.get_graph()
     # IO.inspect(graph, label: "GRAPH")
     {path, _dot} = Graph.write_dot(gname)
     # IO.puts(dot)
     Graph.render_dot(path)
-    send(client, :nfa_running)
+
     nfa(nfa)
   end
 
   @spec nfa(pid()) :: no_return()
   defp nfa(nfa) do
     receive do
-      state when is_tuple(state) ->
-        Proc.traverse(nfa, state)
-
-      :teardown ->
-        exit(:normal)
+      state when is_state(state) -> Proc.traverse(nfa, state)
+      :teardown -> exit(:normal)
+      msg -> raise RuntimeError, message: "Unhandled message #{inspect(msg)}"
     end
 
     nfa(nfa)
@@ -76,18 +69,30 @@ defmodule Myrex.NFA.Start do
   Destroy an NFA process network. 
   The builder process is stopped
   and all linked NFA processes will exit.
+
+  Ignore if the argument is other than an NFA process,
+  such as `nil` from batch executor
+  and string regex from testing.
   """
+  @spec teardown(any()) :: :teardown | :ignore
+  def teardown(nfa) when is_pid(nfa), do: send(nfa, :teardown)
+  def teardown(_), do: :ignore
 
-  @spec teardown(any()) :: :ok
+  # initialize the start process
+  # add the start node to the graph (if enabled)
+  # pass a builder function that creates the NFA in the start process
+  # wait for the NFA to be complete
+  @spec proc_init(T.builder(), T.maybe(String.t())) :: pid()
+  defp proc_init(builder, gname) do
+    start =
+      Proc.init_parent(__MODULE__, :build, [builder, gname, self()], "start", not is_nil(gname))
 
-  def teardown(nfa) when is_pid(nfa) do
-    send(nfa, :teardown)
-    :ok
-  end
+    receive do
+      :nfa_running ->
+        start
 
-  def teardown(_) do
-    # ignore nil from batch executor
-    # and string regex from testing
-    :ok
+      {:EXIT, ^start, reason} ->
+        raise RuntimeError, message: "Compilation failed: #{inspect(reason)}"
+    end
   end
 end

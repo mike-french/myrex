@@ -17,6 +17,14 @@
   
 * Clarify behaviour of top-level RE as string
 
+* Clarify build-time and run-time options
+  especially group captures, names, etc.
+
 * Unicode escapes in the RE, with all string conversions
 
 * Performance tests
+
+* Make Graph accept procs not pids
+  maybe lift proc tuples to have a :proc tag
+  but performance hit of tuple construction,
+  copying and destructuring

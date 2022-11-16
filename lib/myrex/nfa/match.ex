@@ -9,7 +9,7 @@ defmodule Myrex.NFA.Match do
   @spec init(T.acceptor(), boolean(), String.t()) :: pid()
   def init(accept?, peek?, label) when is_function(accept?, 1) and is_boolean(peek?) do
     # peek does not advance the input position
-    Proc.init(__MODULE__, :attach, [accept?, peek?, label], label)
+    Proc.init_child(__MODULE__, :attach, [accept?, peek?, label], label)
   end
 
   @spec attach(T.acceptor(), boolean(), String.t()) :: no_return()

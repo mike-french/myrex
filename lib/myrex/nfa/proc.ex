@@ -15,6 +15,7 @@ defmodule Myrex.NFA.Proc do
   * `{ Input, [Output] }`
   """
 
+  import Myrex.Types
   alias Myrex.Types, as: T
 
   alias Myrex.NFA.Graph
@@ -29,24 +30,38 @@ defmodule Myrex.NFA.Proc do
   """
   @spec connect(T.proc(), T.proc()) :: T.proc()
 
-  def connect(in_out, next) when is_pid(in_out) do
+  def connect(in_out, next) when is_pid(in_out) and is_proc(next) do
     dst = input(next)
     Graph.add_edge(in_out, dst)
     send(in_out, {:attach, dst})
     next
   end
 
-  def connect({_, output}, next) when is_pid(output) do
+  def connect({_, output}, next) when is_pid(output) and is_proc(next) do
+    connect(output, next)
+  end
+
+  def connect({_, outputs}, next) when is_list(outputs) and is_proc(next) do
     dst = input(next)
-    Graph.add_edge(output, dst)
-    send(output, {:attach, dst})
+    Enum.each(outputs, &connect(&1, dst))
     next
   end
 
-  def connect({_, outputs}, next) when is_list(outputs) do
-    dst = input(next)
-    Graph.add_edges(outputs, dst)
-    Enum.each(outputs, &send(&1, {:attach, dst}))
+  @doc """
+  Connect the output of the current process to a downstream process.
+
+  Use an embedded receive for attachment, 
+  rather than an existing receive clause in the current process.
+  """
+  @spec connect_to(pid()) :: pid()
+  def connect_to(next) when is_pid(next) do
+    connect(self(), next)
+
+    receive do
+      {:attach, ^next} -> :ok
+      msg -> raise RuntimeError, message: "Unhandled message #{inspect(msg)}"
+    end
+
     next
   end
 
@@ -55,6 +70,10 @@ defmodule Myrex.NFA.Proc do
   def input(in_out) when is_pid(in_out), do: in_out
   def input({input, _}) when is_pid(input), do: input
 
+  @doc "Get the input PIDs from a set of process networks."
+  @spec inputs(T.procs()) :: [pid()]
+  def inputs(procs) when is_list(procs), do: Enum.map(procs, &input/1)
+
   @doc "Get the output PIDs from a process network."
   @spec output(T.proc()) :: pid() | [pid()]
   def output(in_out) when is_pid(in_out), do: in_out
@@ -62,10 +81,8 @@ defmodule Myrex.NFA.Proc do
   def output({_, outputs}) when is_list(outputs), do: outputs
 
   # gather all the output PIDs from a set of networks
-  @spec outputs(T.procs(), [pid()]) :: [pid()]
-  def outputs(proc, outputs \\ [])
-  def outputs([p | procs], outputs), do: outputs(procs, [output(p) | outputs])
-  def outputs([], outputs), do: List.flatten(outputs)
+  @spec outputs(T.procs()) :: [pid()]
+  def outputs(procs), do: procs |> Enum.map(&output/1) |> List.flatten()
 
   @doc """
   Continue a traversal by sending a new state to the next process.
@@ -78,10 +95,37 @@ defmodule Myrex.NFA.Proc do
 
   @doc """
   Spawn a linked child NFA process.
-  Register the named node in the graph.
+  Register the named node in the graph
+  managed by the calling process 
+  (not the spawned process).
   """
-  @spec init(module(), atom(), list(), String.t()) :: pid()
-  def init(m, f, a, name) do
+  @spec init_child(module(), atom(), list(), String.t()) :: pid()
+  def init_child(m, f, a, name) do
     spawn_link(m, f, a) |> Graph.add_node(name)
+  end
+
+  @doc """
+  Spawn the parent NFA process.
+  Register the named node in the graph
+  managed by the spawned process
+  (not the calling process)
+  """
+  @spec init_parent(module(), atom(), list(), String.t(), boolean()) :: pid()
+  def init_parent(m, f, a, name, enable? \\ false)
+
+  def init_parent(m, f, a, _name, false) do
+    spawn_link(m, f, a)
+  end
+
+  def init_parent(m, f, a, name, true) do
+    # intercept and forward the NFA graph parent process
+    spawn_link(__MODULE__, :parent, [m, f, a, name])
+  end
+
+  def parent(m, f, a, name) do
+    # activate the graph in the spawned process
+    Graph.enable()
+    Graph.add_node(self(), name)
+    apply(m, f, a)
   end
 end

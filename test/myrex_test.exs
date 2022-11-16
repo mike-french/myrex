@@ -159,7 +159,22 @@ defmodule Myrex.MyrexTest do
 
       execute(re_nfa, "abcd", {:match, %{1 => "cd"}})
 
-      execute(re_nfa, "(?ab)", :no_match)
+      execute(re_nfa, "abxy", :no_match)
+
+      Myrex.teardown(re_nfa)
+    end
+
+    test "group named capture test #{mode}" do
+      re = "(ab)(cd)"
+      re_nfa = build(re, unquote(mode))
+
+      opts = [return: :binary, graph_name: :re]
+      execute(re_nfa, "abcd", {:match, %{1 => "ab"}}, [{:capture, [1]} | opts])
+      execute(re_nfa, "abcd", {:match, %{2 => "cd"}}, [{:capture, [2]} | opts])
+
+      opts = [return: :index, graph_name: :re]
+      execute(re_nfa, "abcd", {:match, %{1 => {0, 2}}}, [{:capture, [1]} | opts])
+      execute(re_nfa, "abcd", {:match, %{2 => {2, 2}}}, [{:capture, [2]} | opts])
 
       Myrex.teardown(re_nfa)
     end
@@ -249,7 +264,7 @@ defmodule Myrex.MyrexTest do
   defp exec(nfa, str, {:matches, expects} = success, opts) do
     case run(nfa, str, opts) do
       {:match, actual} -> assert actual in expects
-      {:matches, actuals} -> assert ^expects = actuals
+      {:matches, actuals} -> assert Enum.sort(expects) == Enum.sort(actuals)
       nomatch -> assert nomatch == success
     end
   end

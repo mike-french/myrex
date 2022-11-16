@@ -14,30 +14,36 @@ defmodule Myrex.NFA.Split do
   import Myrex.Types
   alias Myrex.Types, as: T
 
-  alias Myrex.NFA.Graph
   alias Myrex.NFA.Proc
 
   @spec init(T.proc() | T.procs(), String.t()) :: pid()
 
   def init(procs, label) when is_list(procs) do
-    nexts = Enum.map(procs, &Proc.input(&1))
-    # fan-out to multiple procs e.g. alternate
-    # does not need attach step
-    split = Proc.init(__MODULE__, :match, [nexts], label)
-    # split procs connections do not use Proc.connect
-    # so explicitly add the graph edge here
-    Graph.add_edges(split, nexts)
+    # fan-out to multiple procs for alternate choice and positive character classes
+    # there is no downstream connection for split in addition to the choices
+    # so the expected number of attachments is just the number of choices
+    split = Proc.init_child(__MODULE__, :attach, [[], length(procs)], label)
+    Enum.each(procs, &Proc.connect(split, &1))
     split
   end
 
   def init(proc1, label) when is_proc(proc1) do
-    # needs attach step for output connection e.g. quantifiers
-    pid = Proc.input(proc1)
-    split = Proc.init(__MODULE__, :attach, [pid], label)
-    # split proc connection does not use Proc.connect
-    # so explicitly add the graph edge here
-    Graph.add_edge(split, pid)
+    # every quantifier has a downstream connection 
+    # in addition to the quantified process
+    # so the expected number of attachments is 1+1
+    split = Proc.init_child(__MODULE__, :attach, [[], 2], label)
+    Proc.connect(split, proc1)
     split
+  end
+
+  @spec attach([pid()], T.count()) :: no_return()
+  def attach(nexts, 0), do: match(nexts)
+
+  def attach(nexts, n_attach) when is_list(nexts) and n_attach > 0 do
+    receive do
+      {:attach, pid} when is_pid(pid) -> attach([pid | nexts], n_attach - 1)
+      msg -> raise RuntimeError, message: "Unhandled message #{inspect(msg)}"
+    end
   end
 
   @spec attach(pid()) :: no_return()

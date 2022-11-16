@@ -5,7 +5,7 @@ defmodule Myrex.NFA.EndGroup do
 
   @spec init() :: pid()
   def init() do
-    Proc.init(__MODULE__, :attach, [], ")")
+    Proc.init_child(__MODULE__, :attach, [], ")")
   end
 
   @spec attach() :: no_return()

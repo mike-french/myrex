@@ -8,7 +8,7 @@ defmodule Myrex.NFA.Success do
 
   @spec init(T.count()) :: pid()
   def init(ngroup) when is_count(ngroup) do
-    Proc.init(__MODULE__, :match, [ngroup], "success")
+    Proc.init_child(__MODULE__, :match, [ngroup], "success")
   end
 
   # no need for attach, because the executor is carried in the traversal state

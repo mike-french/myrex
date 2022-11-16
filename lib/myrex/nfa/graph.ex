@@ -1,6 +1,10 @@
 defmodule Myrex.NFA.Graph do
   @moduledoc """
   Utilities for storing a directed graph in the process dictionary.
+
+  All node creation, edge creation and graph access
+  must be executed from the same process.
+
   The graph can be converted to GraphViz DOT format
   and rendered as a PNG image (if GraphVia is installed).
   """
@@ -71,30 +75,6 @@ defmodule Myrex.NFA.Graph do
       src = pid2id(src_pid)
       dst = pid2id(dst_pid)
       edges = get_edges() |> List.insert_at(0, {src, dst})
-      Process.put(@edges, edges)
-      :ok
-    else
-      :disabled
-    end
-  end
-
-  @spec add_edges([pid()] | pid(), pid() | [pid()]) :: :ok | :disabled
-
-  def add_edges(src_pid, dst_pids) when is_pid(src_pid) and is_list(dst_pids) do
-    if enabled?() do
-      src = pid2id(src_pid)
-      edges = dst_pids |> Enum.map(&{src, pid2id(&1)}) |> Enum.concat(get_edges())
-      Process.put(@edges, edges)
-      :ok
-    else
-      :disabled
-    end
-  end
-
-  def add_edges(src_pids, dst_pid) when is_pid(dst_pid) and is_list(src_pids) do
-    if enabled?() do
-      dst = pid2id(dst_pid)
-      edges = src_pids |> Enum.map(&{pid2id(&1), dst}) |> Enum.concat(get_edges())
       Process.put(@edges, edges)
       :ok
     else

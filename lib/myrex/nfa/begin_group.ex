@@ -7,7 +7,7 @@ defmodule Myrex.NFA.BeginGroup do
 
   @spec init(T.capture_name()) :: pid()
   def init(name) when is_name(name) do
-    Proc.init(__MODULE__, :attach, [name], "(")
+    Proc.init_child(__MODULE__, :attach, [name], "(")
   end
 
   @spec attach(T.capture_name()) :: no_return()

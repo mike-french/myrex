@@ -225,4 +225,5 @@ defmodule Myrex.Types do
   message count and the final result of match or no match.
   """
   @type state() :: {String.t(), position(), groups(), captures(), executor :: pid()}
+  defguard is_state(s) when is_tuple(s) and tuple_size(s) == 5
 end

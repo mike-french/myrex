@@ -104,7 +104,7 @@ defmodule Myrex do
             {:all, :index} -> caps
             {:all, :binary} -> cap2str(Map.keys(caps), str, caps)
             {names, :index} when is_list(names) -> Map.take(caps, names)
-            {names, :binary} when is_list(names) -> cap2str(names, str, caps)
+            {names, :binary} when is_list(names) -> cap2str(names, str, Map.take(caps, names))
           end
 
         caps = Map.put(caps, 0, str)

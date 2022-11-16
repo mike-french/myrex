@@ -307,21 +307,20 @@ However, there is an option to choose how multiple matches are handled:
 
 The first match is non-deterministic - the clue is in the name _*N*_ FA :)
 The actual outcome depends on the Erlang BEAM scheduler.
-In practice, it appears that non-greedy execution is favoured.
 If the regular expression is not ambiguous, then the option should be _first,_
 because there may be a long delay to wait for all failure traversals to finish.
 
-For example: let the exponential operator `^` mean repeat 
-characters and groups in a string, 
-so `a^4` for a string means `aaaa` 
+For example: let the exponential meta-operator `^` mean repetition
+of characters and groups in a string.
+So `a^4` for a string means `aaaa` 
 and `(a?)^4` for a regex means `(a?a?a?a?)`.
 We will consider a regex of the form `(a?)^n (a*)^n` 
 matching a string of `a^n`
 (a highly ambiguous exaggeration from the example in
 \[[Cox](https://swtch.com/~rsc/regexp/regexp1.html)\]).
 
-The no. of matches, _M(n),_ is calculated by a dot product
-of two vectors sliced from Pascal's Triangle
+The no. of matches, M(n), is calculated by a 
+dot product of two vectors sliced from Pascal's Triangle 
 (but this margin is too small to contain a proof :)
 
 ```
