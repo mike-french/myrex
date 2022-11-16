@@ -98,6 +98,40 @@ defmodule Myrex.MyrexTest do
       Myrex.teardown(re_nfa)
     end
 
+    test "char any quantifiers test #{mode}" do
+      re = ".?z"
+      re_nfa = build(re, unquote(mode))
+      execute(re_nfa, "az", :match)
+      execute(re_nfa, "z", :match)
+      execute(re_nfa, "aaz", :no_match)
+      Myrex.teardown(re_nfa)
+
+      re = ".+z"
+      re_nfa = build(re, unquote(mode))
+      execute(re_nfa, "az", :match)
+      execute(re_nfa, "abcdefgz", :match)
+      execute(re_nfa, "z", :no_match)
+      Myrex.teardown(re_nfa)
+
+      re = ".*z"
+      re_nfa = build(re, unquote(mode))
+      execute(re_nfa, "z", :match)
+      execute(re_nfa, "az", :match)
+      execute(re_nfa, "abcdefgz", :match)
+      execute(re_nfa, "a", :no_match)
+      Myrex.teardown(re_nfa)
+
+      re = ".*z.*"
+      re_nfa = build(re, unquote(mode))
+      execute(re_nfa, "z", :match)
+      execute(re_nfa, "az", :match)
+      execute(re_nfa, "za", :match)
+      execute(re_nfa, "abcdefgzhjijklm", :match)
+      execute(re_nfa, "a", :no_match)
+      execute(re_nfa, "abc", :no_match)
+      Myrex.teardown(re_nfa)
+    end
+
     test "zero one test #{mode}" do
       re = "t?"
       re_nfa = build(re, unquote(mode))
