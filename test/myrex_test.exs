@@ -1,18 +1,27 @@
 defmodule Myrex.MyrexTest do
   use ExUnit.Case, async: false
 
+  import Myrex.Types
+  alias Myrex.Types, as: T
+
+  @type expect() :: :no_match | :match | :matches | T.result()
+
   @default_opts [capture: :all, return: :binary, graph_name: :re]
+
+  # NOTE - the first argument to 'exec' is the Myrex function name
+  # the later argument is the expected result
+  # but these may be the same in the case of ':match'
 
   for mode <- [:batch] do
     test "char test #{mode}" do
       re = "ab"
       re_nfa = build(re, unquote(mode))
 
-      execute(re_nfa, "ab", :match)
+      exec(:match, re_nfa, "ab", :match)
 
-      execute(re_nfa, "", :no_match)
-      execute(re_nfa, "bb", :no_match)
-      execute(re_nfa, "abab", :no_match)
+      exec(:match, re_nfa, "", :no_match)
+      exec(:match, re_nfa, "bb", :no_match)
+      exec(:match, re_nfa, "abab", :no_match)
 
       Myrex.teardown(re_nfa)
     end
@@ -21,10 +30,10 @@ defmodule Myrex.MyrexTest do
       re = "\\?\\*\\[\\]\\(\\)"
       re_nfa = build(re, unquote(mode))
 
-      execute(re_nfa, "?*[]()", :match)
+      exec(:match, re_nfa, "?*[]()", :match)
 
-      execute(re_nfa, "", :no_match)
-      execute(re_nfa, "abc", :no_match)
+      exec(:match, re_nfa, "", :no_match)
+      exec(:match, re_nfa, "abc", :no_match)
 
       Myrex.teardown(re_nfa)
     end
@@ -33,28 +42,28 @@ defmodule Myrex.MyrexTest do
       re = "\\\\"
       re_nfa = build(re, unquote(mode))
 
-      execute(re_nfa, "\\", :match)
+      exec(:match, re_nfa, "\\", :match)
 
-      execute(re_nfa, "", :no_match)
-      execute(re_nfa, "abc", :no_match)
+      exec(:match, re_nfa, "", :no_match)
+      exec(:match, re_nfa, "abc", :no_match)
 
       Myrex.teardown(re_nfa)
     end
 
     test "char range test #{mode}" do
-      re = "[a-dz]"
+      re = "[a-dZ]"
       re_nfa = build(re, unquote(mode))
 
-      execute(re_nfa, "a", :match)
-      execute(re_nfa, "c", :match)
-      execute(re_nfa, "d", :match)
-      execute(re_nfa, "z", :match)
+      exec(:match, re_nfa, "a", :match)
+      exec(:match, re_nfa, "c", :match)
+      exec(:match, re_nfa, "d", :match)
+      exec(:match, re_nfa, "Z", :match)
 
-      execute(re_nfa, "", :no_match)
-      execute(re_nfa, "^", :no_match)
-      execute(re_nfa, "e", :no_match)
-      execute(re_nfa, "p", :no_match)
-      execute(re_nfa, "abcd", :no_match)
+      exec(:match, re_nfa, "", :no_match)
+      exec(:match, re_nfa, "^", :no_match)
+      exec(:match, re_nfa, "e", :no_match)
+      exec(:match, re_nfa, "p", :no_match)
+      exec(:match, re_nfa, "abcd", :no_match)
 
       Myrex.teardown(re_nfa)
     end
@@ -63,72 +72,72 @@ defmodule Myrex.MyrexTest do
       re = "[^0-9p]"
       re_nfa = build(re, unquote(mode))
 
-      execute(re_nfa, "a", :match)
-      execute(re_nfa, "c", :match)
-      execute(re_nfa, "d", :match)
-      execute(re_nfa, "z", :match)
+      exec(:match, re_nfa, "a", :match)
+      exec(:match, re_nfa, "c", :match)
+      exec(:match, re_nfa, "d", :match)
+      exec(:match, re_nfa, "z", :match)
 
-      execute(re_nfa, "0", :no_match)
-      execute(re_nfa, "2", :no_match)
-      execute(re_nfa, "9", :no_match)
-      execute(re_nfa, "p", :no_match)
-      execute(re_nfa, "01", :no_match)
+      exec(:match, re_nfa, "0", :no_match)
+      exec(:match, re_nfa, "2", :no_match)
+      exec(:match, re_nfa, "9", :no_match)
+      exec(:match, re_nfa, "p", :no_match)
+      exec(:match, re_nfa, "01", :no_match)
 
       Myrex.teardown(re_nfa)
     end
 
     test "char any test #{mode}" do
-      re = ".z"
+      re = ".Z"
       re_nfa = build(re, unquote(mode))
 
-      execute(re_nfa, "az", :match)
-      execute(re_nfa, "zz", :match)
-      execute(re_nfa, "\tz", :match)
+      exec(:match, re_nfa, "aZ", :match)
+      exec(:match, re_nfa, "ZZ", :match)
+      exec(:match, re_nfa, "\tZ", :match)
 
-      execute(re_nfa, "", :no_match)
-      execute(re_nfa, "aa", :no_match)
-      execute(re_nfa, "qzz", :no_match)
-      execute(re_nfa, "\nz", :no_match)
+      exec(:match, re_nfa, "", :no_match)
+      exec(:match, re_nfa, "aa", :no_match)
+      exec(:match, re_nfa, "qZZ", :no_match)
+      exec(:match, re_nfa, "\nZ", :no_match)
 
       nfa_dotall = Myrex.compile(re, dotall: true)
 
-      execute(nfa_dotall, "az", :match)
-      # execute(nfa_dotall, "\nz", :match)
+      exec(:match, nfa_dotall, "aZ", :match)
+      # execute(nfa_dotall, "\nZ", :match)
 
       Myrex.teardown(re_nfa)
     end
 
     test "char any quantifiers test #{mode}" do
-      re = ".?z"
+      re = ".?Z"
       re_nfa = build(re, unquote(mode))
-      execute(re_nfa, "az", :match)
-      execute(re_nfa, "z", :match)
-      execute(re_nfa, "aaz", :no_match)
+      exec(:match, re_nfa, "aZ", :match)
+      exec(:match, re_nfa, "Z", :match)
+      exec(:match, re_nfa, "aaZ", :no_match)
       Myrex.teardown(re_nfa)
 
-      re = ".+z"
+      re = ".+Z"
       re_nfa = build(re, unquote(mode))
-      execute(re_nfa, "az", :match)
-      execute(re_nfa, "abcdefgz", :match)
-      execute(re_nfa, "z", :no_match)
+      exec(:match, re_nfa, "aZ", :match)
+      exec(:match, re_nfa, "abcdefgZ", :match)
+      exec(:match, re_nfa, "Z", :no_match)
       Myrex.teardown(re_nfa)
 
-      re = ".*z"
+      re = ".*Z"
       re_nfa = build(re, unquote(mode))
-      execute(re_nfa, "z", :match)
-      execute(re_nfa, "az", :match)
-      execute(re_nfa, "abcdefgz", :match)
-      execute(re_nfa, "a", :no_match)
+      exec(:match, re_nfa, "Z", :match)
+      exec(:match, re_nfa, "aZ", :match)
+      exec(:match, re_nfa, "abcdefgZ", :match)
+      exec(:match, re_nfa, "a", :no_match)
       Myrex.teardown(re_nfa)
 
-      re = ".*z.*"
+      re = ".*Z.*"
       re_nfa = build(re, unquote(mode))
-      execute(re_nfa, "z", :match)
-      execute(re_nfa, "az", :match)
-      execute(re_nfa, "za", :match)
-      execute(re_nfa, "abcdefgzhjijklm", :match)
-      execute(re_nfa, "a", :no_match)
-      execute(re_nfa, "abc", :no_match)
+      exec(:match, re_nfa, "Z", :match)
+      exec(:match, re_nfa, "aZ", :match)
+      exec(:match, re_nfa, "Za", :match)
+      exec(:match, re_nfa, "abcdefgZhjijklm", :match)
+      exec(:match, re_nfa, "a", :no_match)
+      exec(:match, re_nfa, "abc", :no_match)
       Myrex.teardown(re_nfa)
     end
 
@@ -136,11 +145,11 @@ defmodule Myrex.MyrexTest do
       re = "t?"
       re_nfa = build(re, unquote(mode))
 
-      execute(re_nfa, "", :match)
-      execute(re_nfa, "t", :match)
+      exec(:match, re_nfa, "", :match)
+      exec(:match, re_nfa, "t", :match)
 
-      execute(re_nfa, "s", :no_match)
-      execute(re_nfa, "tt", :no_match)
+      exec(:match, re_nfa, "s", :no_match)
+      exec(:match, re_nfa, "tt", :no_match)
 
       Myrex.teardown(re_nfa)
     end
@@ -149,12 +158,12 @@ defmodule Myrex.MyrexTest do
       re = "j+"
       re_nfa = build(re, unquote(mode))
 
-      execute(re_nfa, "j", :match)
-      execute(re_nfa, "jj", :match)
+      exec(:match, re_nfa, "j", :match)
+      exec(:match, re_nfa, "jj", :match)
 
-      execute(re_nfa, "", :no_match)
-      execute(re_nfa, "k", :no_match)
-      execute(re_nfa, "jk", :no_match)
+      exec(:match, re_nfa, "", :no_match)
+      exec(:match, re_nfa, "k", :no_match)
+      exec(:match, re_nfa, "jk", :no_match)
 
       Myrex.teardown(re_nfa)
     end
@@ -163,13 +172,13 @@ defmodule Myrex.MyrexTest do
       re = "m*"
       re_nfa = build(re, unquote(mode))
 
-      execute(re_nfa, "", :match)
-      execute(re_nfa, "m", :match)
-      execute(re_nfa, "mm", :match)
+      exec(:match, re_nfa, "", :match)
+      exec(:match, re_nfa, "m", :match)
+      exec(:match, re_nfa, "mm", :match)
 
-      execute(re_nfa, "k", :no_match)
-      execute(re_nfa, "jk", :no_match)
-      execute(re_nfa, "mk", :no_match)
+      exec(:match, re_nfa, "k", :no_match)
+      exec(:match, re_nfa, "jk", :no_match)
+      exec(:match, re_nfa, "mk", :no_match)
 
       Myrex.teardown(re_nfa)
     end
@@ -178,11 +187,11 @@ defmodule Myrex.MyrexTest do
       re = "(ab)"
       re_nfa = build(re, unquote(mode))
 
-      execute(re_nfa, "ab", {:match, %{1 => "ab"}})
+      exec(:match, re_nfa, "ab", {:match, %{1 => "ab"}})
 
-      execute(re_nfa, "", :no_match)
-      execute(re_nfa, "bb", :no_match)
-      execute(re_nfa, "abab", :no_match)
+      exec(:match, re_nfa, "", :no_match)
+      exec(:match, re_nfa, "bb", :no_match)
+      exec(:match, re_nfa, "abab", :no_match)
 
       Myrex.teardown(re_nfa)
     end
@@ -191,9 +200,9 @@ defmodule Myrex.MyrexTest do
       re = "(?:ab)(cd)"
       re_nfa = build(re, unquote(mode))
 
-      execute(re_nfa, "abcd", {:match, %{1 => "cd"}})
+      exec(:match, re_nfa, "abcd", {:match, %{1 => "cd"}})
 
-      execute(re_nfa, "abxy", :no_match)
+      exec(:match, re_nfa, "abxy", :no_match)
 
       Myrex.teardown(re_nfa)
     end
@@ -203,12 +212,12 @@ defmodule Myrex.MyrexTest do
       re_nfa = build(re, unquote(mode))
 
       opts = [return: :binary, graph_name: :re]
-      execute(re_nfa, "abcd", {:match, %{1 => "ab"}}, [{:capture, [1]} | opts])
-      execute(re_nfa, "abcd", {:match, %{2 => "cd"}}, [{:capture, [2]} | opts])
+      exec(:match, re_nfa, "abcd", {:match, %{1 => "ab"}}, [{:capture, [1]} | opts])
+      exec(:match, re_nfa, "abcd", {:match, %{2 => "cd"}}, [{:capture, [2]} | opts])
 
       opts = [return: :index, graph_name: :re]
-      execute(re_nfa, "abcd", {:match, %{1 => {0, 2}}}, [{:capture, [1]} | opts])
-      execute(re_nfa, "abcd", {:match, %{2 => {2, 2}}}, [{:capture, [2]} | opts])
+      exec(:match, re_nfa, "abcd", {:match, %{1 => {0, 2}}}, [{:capture, [1]} | opts])
+      exec(:match, re_nfa, "abcd", {:match, %{2 => {2, 2}}}, [{:capture, [2]} | opts])
 
       Myrex.teardown(re_nfa)
     end
@@ -217,13 +226,13 @@ defmodule Myrex.MyrexTest do
       re = "(ab)|(cd)"
       re_nfa = build(re, unquote(mode))
 
-      execute(re_nfa, "ab", {:match, %{1 => "ab", 2 => :no_capture}})
-      execute(re_nfa, "cd", {:match, %{1 => :no_capture, 2 => "cd"}})
+      exec(:match, re_nfa, "ab", {:match, %{1 => "ab", 2 => :no_capture}})
+      exec(:match, re_nfa, "cd", {:match, %{1 => :no_capture, 2 => "cd"}})
 
-      execute(re_nfa, "", :no_match)
-      execute(re_nfa, "z", :no_match)
-      execute(re_nfa, "abcd", :no_match)
-      execute(re_nfa, "cdab", :no_match)
+      exec(:match, re_nfa, "", :no_match)
+      exec(:match, re_nfa, "z", :no_match)
+      exec(:match, re_nfa, "abcd", :no_match)
+      exec(:match, re_nfa, "cdab", :no_match)
 
       Myrex.teardown(re_nfa)
     end
@@ -234,13 +243,13 @@ defmodule Myrex.MyrexTest do
       re_nfa = build(re, unquote(mode))
 
       expect = {:matches, [%{1 => "", 2 => "a"}, %{1 => "a", 2 => ""}]}
-      execute(re_nfa, "a", expect, opts ++ [multiple: :first])
-      execute(re_nfa, "a", expect, opts ++ [multiple: :all])
+      exec(:match, re_nfa, "a", expect, opts ++ [multiple: :first])
+      exec(:match, re_nfa, "a", expect, opts ++ [multiple: :all])
 
       # TODO - should be multiple results here
       expect = {:matches, [%{1 => "", 2 => "aa"}, %{1 => "a", 2 => "a"}]}
-      execute(re_nfa, "aa", expect, opts ++ [multiple: :first])
-      execute(re_nfa, "aa", expect, opts ++ [multiple: :all])
+      exec(:match, re_nfa, "aa", expect, opts ++ [multiple: :first])
+      exec(:match, re_nfa, "aa", expect, opts ++ [multiple: :all])
 
       Myrex.teardown(re_nfa)
     end
@@ -253,15 +262,39 @@ defmodule Myrex.MyrexTest do
       re_nfa = build(re, unquote(mode))
 
       # TODO - iterate over n and get performance of first/all
-      run(re_nfa, str, opts ++ [multiple: :first])
+      do_apply(:match, re_nfa, str, opts ++ [multiple: :first])
 
       if n < 10 do
-        {:matches, all} = run(re_nfa, str, opts ++ [multiple: :all, timeout: 10_000])
+        {:matches, all} = do_apply(:match, re_nfa, str, opts ++ [multiple: :all, timeout: 10_000])
         IO.inspect(length(all), label: "LENGTH")
       end
 
       Myrex.teardown(re_nfa)
     end
+  end
+
+  test "search test" do
+    mode = :oneshot
+
+    re = "Z"
+    # unquote(mode))
+    re_nfa = build(re, mode)
+
+    opts = @default_opts ++ [multiple: :first]
+    exec(:search, re_nfa, "Z", :match, opts)
+    exec(:search, re_nfa, "aZn", :match, opts)
+    exec(:search, re_nfa, "ZZ", :match, opts)
+    exec(:search, re_nfa, "aZnZs", :match, opts)
+    exec(:search, re_nfa, "aaZn", :match, opts)
+    exec(:search, re_nfa, "aaZn", {:match, %{}}, opts)
+
+    opts = @default_opts ++ [multiple: :all]
+    exec(:search, re_nfa, "aaZn", :matches, opts)
+    exec(:search, re_nfa, "aaZZ", {:matches, [%{}, %{}]}, opts)
+    exec(:search, re_nfa, "aaZ", {:matches, [%{}]}, opts)
+    exec(:search, re_nfa, "aaZnZstu", {:matches, [%{}, %{}]}, opts)
+    exec(:search, re_nfa, "aaZnZstZu", {:matches, [%{}, %{}, %{}]}, opts)
+    Myrex.teardown(re_nfa)
   end
 
   defp dup(n), do: {"(#{dup('a?', n)})(#{dup('a*', n)})", dup(?a, n)}
@@ -279,42 +312,40 @@ defmodule Myrex.MyrexTest do
   end
 
   # execute a test on an RE or compiled NFA
-  defp execute(re_nfa, str, result, opts \\ @default_opts)
+  @spec exec(atom(), T.regex() | pid(), String.t(), expect, T.options()) :: any()
+  defp exec(f, re_nfa, str, expect, opts \\ @default_opts)
 
-  defp execute(re_nfa, str, :no_match, opts),
-    do: exec(re_nfa, str, {:no_match, add0(str)}, opts)
+  defp exec(f, re_nfa, str, {:matches, _} = expect, opts) do
+    {:matches, expect_caps} = success = add_def_cap(str, expect)
 
-  defp execute(re_nfa, str, :match, opts),
-    do: exec(re_nfa, str, {:match, add0(str)}, opts)
-
-  defp execute(re_nfa, str, {:match, caps}, opts),
-    do: exec(re_nfa, str, {:match, add0(caps, str)}, opts)
-
-  defp execute(re_nfa, str, {:matches, capss}, opts) do
-    capss0 = Enum.map(capss, &add0(&1, str))
-    exec(re_nfa, str, {:matches, capss0}, opts)
-  end
-
-  defp exec(nfa, str, {:matches, expects} = success, opts) do
-    case run(nfa, str, opts) do
-      {:match, actual} -> assert actual in expects
-      {:matches, actuals} -> assert Enum.sort(expects) == Enum.sort(actuals)
+    case do_apply(f, re_nfa, str, opts) do
+      {:matches, actual_caps} -> assert Enum.sort(expect_caps) == Enum.sort(actual_caps)
+      # these will fail, but we want the detailed error message for the comparison
+      {:match, actual} -> assert actual in expect_caps
       nomatch -> assert nomatch == success
     end
   end
 
-  defp exec(nfa, str, expect, opts) do
-    assert expect == run(nfa, str, opts)
+  defp exec(f, re_nfa, str, expect, opts) do
+    assert add_def_cap(str, expect) == do_apply(f, re_nfa, str, opts)
   end
 
-  defp run(nfa, str, opts) do
+  @spec do_apply(atom(), T.regex() | pid(), String.t(), T.options()) :: any()
+  defp do_apply(f, re_nfa, str, opts) do
     IO.inspect(str, label: "STR   ")
-
-    {time, value} = :timer.tc(fn -> Myrex.run(nfa, str, opts) end)
+    {time, value} = :timer.tc(fn -> apply(Myrex, f, [re_nfa, str, opts]) end)
     IO.inspect(value, label: "RESULT")
     IO.inspect(time, label: "TIME (us)")
     value
   end
+
+  # add the default whole string capture to expected results
+  @spec add_def_cap(String.t(), expect()) :: T.result()
+  defp add_def_cap(str, :no_match), do: {:no_match, add0(str)}
+  defp add_def_cap(str, :match), do: {:match, add0(str)}
+  defp add_def_cap(str, :matches), do: {:matches, [add0(str)]}
+  defp add_def_cap(str, {:match, caps}), do: {:match, add0(caps, str)}
+  defp add_def_cap(str, {:matches, capss}), do: {:matches, Enum.map(capss, &add0(&1, str))}
 
   defp add0(caps \\ %{}, str), do: Map.put(caps, 0, str)
 end

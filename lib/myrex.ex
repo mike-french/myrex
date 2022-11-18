@@ -39,6 +39,38 @@ defmodule Myrex do
   end
 
   @doc """
+  Search for a regular expression pattern in an input string.
+
+  Search with an RE for a single result is equivalent to wrapping
+  the regex with the wildcard expression `.*`. 
+  For example, `"abc" ~> ".*abc.*"`.
+
+  Oneshot search just wraps the regex with the wildcard, 
+  compiles the NFA and runs a normal `match`.
+
+  Batch search applies a pair of _zero or more_ process combinators
+  to the existing NFA, then runs the wrapped process network.
+  """
+  @spec search(String.t() | pid(), String.t(), Keyword.t()) :: T.result()
+
+  def search(re, str, opts \\ [])
+
+  def search(re, str, opts) when is_binary(re) and is_binary(str) and is_list(opts) do
+    # oneshot execution
+    # the executor will compile, run and teardown the NFA process network
+    Process.flag(:trap_exit, true)
+    Executor.init_oneshot(".*" <> re <> ".*", str, opts)
+    do_match(str, opts)
+  end
+
+  def search(start, str, opts) when is_pid(start) and is_binary(str) and is_list(opts) do
+    # TODO ...
+    Process.flag(:trap_exit, true)
+    Executor.init_search(start, str, opts)
+    do_match(str, opts)
+  end
+
+  @doc """
   Apply a regular expression to a string argument. 
 
   The first argument can be either a regular expression string,
@@ -54,26 +86,26 @@ defmodule Myrex do
   the options passed for batch execution
   only affect the runtime behaviour (`:return` type).
   """
-  @spec run(String.t() | pid(), String.t(), Keyword.t()) :: T.result()
+  @spec match(String.t() | pid(), String.t(), Keyword.t()) :: T.result()
 
-  def run(re, str, opts \\ [])
+  def match(re, str, opts \\ [])
 
-  def run(re, str, opts) when is_binary(re) and is_binary(str) and is_list(opts) do
+  def match(re, str, opts) when is_binary(re) and is_binary(str) and is_list(opts) do
     # oneshot execution
     # the executor will compile, run and teardown the NFA process network
     Process.flag(:trap_exit, true)
     Executor.init_oneshot(re, str, opts)
-    do_run(str, opts)
+    do_match(str, opts)
   end
 
-  def run(start, str, opts) when is_pid(start) and is_binary(str) and is_list(opts) do
+  def match(start, str, opts) when is_pid(start) and is_binary(str) and is_list(opts) do
     Process.flag(:trap_exit, true)
     Executor.init_batch(start, str, opts)
-    do_run(str, opts)
+    do_match(str, opts)
   end
 
-  @spec do_run(String.t(), T.options()) :: no_return()
-  defp do_run(str, opts, matches \\ []) do
+  @spec do_match(String.t(), T.options()) :: no_return()
+  defp do_match(str, opts, matches \\ []) do
     # Add the whole string capture to the result, not in traverse call,
     # so it does not need to be copied through every traversal.
     # Ignore options, and add it as a string (binary) 
@@ -83,8 +115,6 @@ defmodule Myrex do
     # TODO - only handle return type flag here?
     # captures should be compiled into the group and success processes?
     # what is the difference between compile-time and run-time options?
-
-    # TODO - handle multiple results ****
 
     receive do
       :end_matches ->
@@ -111,11 +141,11 @@ defmodule Myrex do
 
         case multi do
           :first -> {:match, caps}
-          :all -> do_run(str, opts, [caps | matches])
+          :all -> do_match(str, opts, [caps | matches])
         end
 
       {:EXIT, _, :normal} ->
-        do_run(str, opts, matches)
+        do_match(str, opts, matches)
 
       {:EXIT, _, reason} ->
         raise RuntimeError, message: "Execution failed: #{inspect(reason)}"

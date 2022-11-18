@@ -44,6 +44,21 @@ defmodule Myrex.Executor do
     executor
   end
 
+  @doc """
+  Initialize a batch search matching operation. 
+  The client to receive results is the calling process (self).
+  The NFA is owned by a separate builder process.
+  The client should initiate traversal through the NFA builder process.
+  """
+  @spec init_search(pid(), String.t(), T.options()) :: pid()
+  def init_search(nfa, str, opts) when is_pid(nfa) and is_binary(str) and is_list(opts) do
+    # TODO *******************************************************
+    # don't pass nfa for teardown
+    executor = spawn_link(__MODULE__, :exec, [nil, opts, self()])
+    Proc.traverse(nfa, {str, 0, [], %{}, executor})
+    executor
+  end
+
   @spec exec(T.maybe(pid()), T.options(), pid()) :: no_return()
   def exec(nfa, opts, client) do
     timeout = Keyword.get(opts, :timeout, @default_timeout)

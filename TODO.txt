@@ -11,7 +11,7 @@
 
 * Named groups (?<name>...) or (?'name'...)
 
-* Process behaviour? init, attach, match
+* Process behaviour? init/postfun, attach, match
 
 * Process runtime monitoring 
   
@@ -28,3 +28,6 @@
   maybe lift proc tuples to have a :proc tag
   but performance hit of tuple construction,
   copying and destructuring
+  
+* Add generator function to the NFAs
+  Use constant factor option for decay of 'more'

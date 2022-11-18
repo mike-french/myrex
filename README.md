@@ -321,7 +321,7 @@ matching a string of `a^n`
 
 The no. of matches, M(n), is calculated by a 
 dot product of two vectors sliced from Pascal's Triangle 
-(but this margin is too small to contain a proof :)
+(see the tech note \[[pdf](MultipleMatchRegex.pdf)\] for a proof sketch)
 
 ```
 a?^n  binary counting:  direction /
@@ -369,7 +369,6 @@ are initiated in parallel.
 
 Results are for Windows running on Intel i7-8550U @ 1.80GHz,
 with 4 hardware cores and 8 hardware threads. 
-
 The Erlang shell displays:
 ```
 Erlang/OTP 23 [erts-11.1] [source] [64-bit] [smp:8:8] [ds:8:8:10] [async-threads:1]
