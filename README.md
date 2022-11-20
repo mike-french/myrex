@@ -5,14 +5,14 @@ An Elixir library for matching strings against regular expressions (REGEX).
 
 The implementation is based on the idea of _Process Oriented Programming:_ 
 * Algorithms are implemented using a fine-grain directed graph of 
-  independent shared-nothing processes.
+  independent share-nothing processes.
 * Processes communicate asynchronously by passing messages. 
 * Process networks naturally run in parallel.
 
 The REGEX is converted to an Abstract Syntax Tree (AST)
-using a variation of the _Shunting Yard_ 
-\[[Wikipedia](https://en.wikipedia.org/wiki/Shunting_yard_algorithm)\]
-parsing algorithm.
+using a variation of the _Shunting Yard_ parsing algorithm
+\[[Wikipedia](https://en.wikipedia.org/wiki/Shunting_yard_algorithm)\].
+
 
 The AST is used to build a Non-deterministic Finite Automaton (NFA)
 using a variation of _Thomson's Algorithm_
@@ -206,7 +206,7 @@ for all the enclosed characters and character ranges.
 
 #### Quantifiers
 
-Combinator for zero or one repetitions `P?`.
+Combinator for _zero or one_ repetitions `P?`.
 
 `Split` node _S_ can bypass the process subgraph _P_ (zero).
 
@@ -221,7 +221,7 @@ Combinator for zero or one repetitions `P?`.
         +---+
 ```
 
-Combinator for one or more repetitions `P+`. 
+Combinator for _one or more_ repetitions `P+`. 
 
 `Split` node _S_ can cycle back to the process node _P_ (more).
 The new network only has one output from the split node.
@@ -236,7 +236,7 @@ The new network only has one output from the split node.
         | S |---> output
         +---+
 ```
-Combinator for zero or more repetitions `P*`.
+Combinator for _zero or more_ repetitions `P*`.
 
 `Split` node _S_ can cycle through the process node _P_ (more).
 The split node can bypass the process subgraph _P_ (zero).
@@ -269,8 +269,8 @@ The process network has a lifecycle based on _batch_ or _oneshot_ patterns.
 
 ### Execution Processes
 
-The matching of individual input strings is managed by an 
-`Executor` process instance.
+The matching of individual input strings is managed by a 
+transient `Executor` process instance.
 An `Executor` is created for each input string, 
 and exits when the matching process completes.  
 
@@ -321,7 +321,7 @@ matching a string of `a^n`
 
 The no. of matches, M(n), is calculated by a 
 dot product of two vectors sliced from Pascal's Triangle 
-(see the tech note \[[pdf](MultipleMatchRegex.pdf)\] for a proof sketch)
+(see the tech note \[[pdf](MultipleMatchRegex.pdf)\] for a proof sketch).
 
 ```
 a?^n  binary counting:  direction /
@@ -373,6 +373,31 @@ The Erlang shell displays:
 ```
 Erlang/OTP 23 [erts-11.1] [source] [64-bit] [smp:8:8] [ds:8:8:10] [async-threads:1]
 ```
+
+### Pattern Modes
+
+There are two ways the REGEX can be applied to the input: _match_ and _search._
+* match
+
+The `Myrex` top-level module has separate interface 
+functions for _match()_ and _search()._
+
+The mode applies to both batch and oneshot network lifecycles. 
+The default behaviour of an NFA is _match_ mode. 
+
+For a oneshot _search,_ the REGEX is just wrapped 
+with a `'.*'` prefix and suffix, then an NFA is created
+for the new expression.
+
+A batch _search_ is more difficult, because the existing NFA
+cannot be modified (it may be running concurrent match traversals).
+A _search_ `Executor` builds a `'.*'` 
+prefix subgraph and connects the output to the `Start` node of the main NFA.
+The `Executor` then listens for partial match messages 
+from the existing `Success` node, and redirects the results
+as new traversals of the augmented NFA network. 
+The search `Executor` tears down the transient prefix subgraph
+at the end of execution, but the main NFA is not changed.
 
 ## Usage
 
