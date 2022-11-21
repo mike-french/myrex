@@ -21,14 +21,29 @@ defmodule Myrex.NFA.Success do
   @spec match(T.count()) :: no_return()
   def match(ngroup) when is_count(ngroup) do
     receive do
-      {"", _len, [], captures, executor} when is_pid(executor) ->
+      {"", _len, [], captures, executor} ->
         # finish state of the NFA and end of input, so a complete match
         captures = default_captures(captures, ngroup)
         Executor.notify_result(executor, {:match, captures})
 
-      {_, _, _, _, executor} when is_pid(executor) ->
+      {"", len, [{:search, begin}], captures, executor} ->
+        # finish state of the NFA and end of input, so a complete search match
+        # open_group contains a special search capture
+        captures = default_captures(captures, ngroup)
+        Executor.notify_result(executor, {:search, {begin, len - begin}, captures})
+
+      {str, pos, [{:search, begin}], _caps, executor} = state when byte_size(str) > 0 ->
         # finish state of the NFA, but not end of input
         # so NFA matches a prefix of the original input
+        # for a search, this is a successful partial match
+        IO.inspect(state, label: "Success: partial match in search mode")
+        Executor.notify_result(executor, {:partial_search, {begin, pos - begin}, state})
+
+      {str, _pos, _open_groups, _caps, executor} = state when byte_size(str) > 0 ->
+        # finish state of the NFA, but not end of input
+        # so NFA matches a prefix of the original input
+        # for a normal match, this is a no_match failure
+        IO.inspect(state, label: "Success: no match in match mode")
         Executor.notify_result(executor, :no_match)
 
       msg ->
@@ -38,6 +53,9 @@ defmodule Myrex.NFA.Success do
     match(ngroup)
   end
 
+  # add default captures
+
+  @spec default_captures(T.captures(), T.count()) :: T.captures()
   defp default_captures(caps, 0), do: caps
 
   defp default_captures(caps, igroup) do

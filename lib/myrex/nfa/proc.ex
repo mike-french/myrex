@@ -52,6 +52,8 @@ defmodule Myrex.NFA.Proc do
 
   Use an embedded receive for attachment, 
   rather than an existing receive clause in the current process.
+
+  Returns the argument.
   """
   @spec connect_to(pid()) :: pid()
   def connect_to(next) when is_pid(next) do
@@ -81,13 +83,16 @@ defmodule Myrex.NFA.Proc do
   def output({_, outputs}) when is_list(outputs), do: outputs
 
   # gather all the output PIDs from a set of networks
-  @spec outputs(T.procs()) :: [pid()]
-  def outputs(procs), do: procs |> Enum.map(&output/1) |> List.flatten()
+  @spec outputs(T.proc() | T.procs()) :: [pid()]
+  def outputs(proc) when is_proc(proc), do: List.wrap(output(proc))
+
+  def outputs(procs) when is_list(procs),
+    do: procs |> Enum.map(&output/1) |> List.flatten()
 
   @doc """
   Continue a traversal by sending a new state to the next process.
   """
-  @spec traverse(pid(), T.state()) :: :ok
+  @spec traverse(T.pid(), T.state()) :: :ok
   def traverse(next, state) when is_pid(next) do
     send(next, state)
     :ok

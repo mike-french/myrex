@@ -6,7 +6,7 @@ defmodule Myrex.NFA.BeginGroup do
   alias Myrex.NFA.Proc
 
   @spec init(T.capture_name()) :: pid()
-  def init(name) when is_name(name) do
+  def init(name) when is_name(name) or is_binary(name) do
     Proc.init_child(__MODULE__, :attach, [name], "(")
   end
 

@@ -79,11 +79,20 @@ defmodule Myrex.Types do
   Groups are assigned a 1-based index,
   and index 0 is reserved for the whole input string.
   """
-  @type capture_name() :: non_neg_integer()
-  defguard is_name(n) when is_integer(n) and n >= 0
+  @type capture_name() :: non_neg_integer() | :search
+  defguard is_name(n) when (is_integer(n) and n >= 0) or n == :search
+
+  @typedoc "A reference into the input string for a capture."
+  @type capture_index() :: {position(), count1()}
+
+  @typedoc "A capture value as an index or a string."
+  @type capture_value() :: capture_index() | String.t()
 
   @typedoc "The set of completed captures from a partial or total match."
   @type captures() :: %{capture_name() => :no_capture | capture() | String.t()}
+
+  @typedoc "Search result containing substring reference and set of captures."
+  @type search_result() :: {capture_value(), captures()}
 
   @typedoc """
   The result of trying to match the regular expression.
@@ -95,11 +104,20 @@ defmodule Myrex.Types do
   If the `:multiple` option is `:all`, then a successful result is `:matches`
   with a list of captures, even if the list just has one member.
   """
-  @type result() :: {:no_match | :match, captures()} | {:matches, [captures()]}
+  @type result() ::
+          {:no_match | :match, captures()}
+          | {:matches, [captures()]}
+          | {:search, search_result()}
+          | {:search, [search_result()]}
+
   defguard is_result(r)
            when is_tuple(r) and
                   tuple_size(r) == 2 and
-                  (elem(r, 0) == :no_match or elem(r, 0) == :match or elem(r, 0) == :matches)
+                  (elem(r, 0) == :no_match or
+                     elem(r, 0) == :match or
+                     elem(r, 0) == :matches or
+                     elem(r, 0) == :search or
+                     elem(r, 0) == :searches)
 
   # ------------
   # lexer tokens
@@ -205,6 +223,9 @@ defmodule Myrex.Types do
   # --------------
   # Internal types
   # --------------
+
+  @typedoc "The mode of applying a regular expression."
+  @type mode() :: :mode_match | :mode_search
 
   @typedoc "A function that matches a single character."
   @type acceptor() :: (char() -> boolean())

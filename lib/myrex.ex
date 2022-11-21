@@ -57,14 +57,15 @@ defmodule Myrex do
 
   def search(re, str, opts) when is_binary(re) and is_binary(str) and is_list(opts) do
     # oneshot execution
-    # the executor will compile, run and teardown the NFA process network
+    # executor will compile, run and teardown the NFA process network
     Process.flag(:trap_exit, true)
     Executor.init_oneshot(".*" <> re <> ".*", str, opts)
     do_match(str, opts)
   end
 
   def search(start, str, opts) when is_pid(start) and is_binary(str) and is_list(opts) do
-    # TODO ...
+    # batch execution 
+    # executor will build transient prefix network for zero or more any character
     Process.flag(:trap_exit, true)
     Executor.init_search(start, str, opts)
     do_match(str, opts)
@@ -104,7 +105,7 @@ defmodule Myrex do
     do_match(str, opts)
   end
 
-  @spec do_match(String.t(), T.options()) :: no_return()
+  @spec do_match(String.t(), T.options(), any()) :: no_return()
   defp do_match(str, opts, matches \\ []) do
     # Add the whole string capture to the result, not in traverse call,
     # so it does not need to be copied through every traversal.
@@ -120,28 +121,27 @@ defmodule Myrex do
       :end_matches ->
         {:matches, matches}
 
+      :end_searches ->
+        # HACK ALERT - fix repeated answer!
+        {:searches, Enum.uniq(matches)}
+
       :no_match ->
         {:no_match, %{0 => str}}
 
       {:match, caps} ->
-        capopt = Keyword.get(opts, :capture, :all)
-        return = Keyword.get(opts, :return, :index)
-        multi = Keyword.get(opts, :multiple, :first)
+        caps = process_captures(str, opts, caps)
 
-        caps =
-          case {capopt, return} do
-            {:none, _} -> %{}
-            {:all, :index} -> caps
-            {:all, :binary} -> cap2str(Map.keys(caps), str, caps)
-            {names, :index} when is_list(names) -> Map.take(caps, names)
-            {names, :binary} when is_list(names) -> cap2str(names, str, Map.take(caps, names))
-          end
-
-        caps = Map.put(caps, 0, str)
-
-        case multi do
+        case Keyword.get(opts, :multiple, :first) do
           :first -> {:match, caps}
           :all -> do_match(str, opts, [caps | matches])
+        end
+
+      {:search, index, caps} ->
+        caps = process_captures(str, opts, caps)
+
+        case Keyword.get(opts, :multiple, :first) do
+          :first -> {:search, index, caps}
+          :all -> do_match(str, opts, [{index, caps} | matches])
         end
 
       {:EXIT, _, :normal} ->
@@ -155,16 +155,41 @@ defmodule Myrex do
     end
   end
 
+  @spec process_captures(String.t(), T.options(), T.captures()) :: T.captures()
+  defp process_captures(str, opts, caps) do
+    capopt = Keyword.get(opts, :capture, :all)
+    return = Keyword.get(opts, :return, :index)
+
+    caps =
+      case {capopt, return} do
+        {:none, _} -> %{}
+        {:all, :index} -> caps
+        {:all, :binary} -> cap2str(Map.keys(caps), str, caps)
+        {names, :index} when is_list(names) -> Map.take(caps, names)
+        {names, :binary} when is_list(names) -> cap2str(names, str, Map.take(caps, names))
+      end
+
+    Map.put(caps, 0, str)
+  end
+
   # get group substrings from capture indexes
   @spec cap2str([T.capture_name()], String.t(), T.captures()) :: T.captures()
 
   defp cap2str([name | names], str, caps) do
     substr =
       case Map.get(caps, name, :no_capture) do
-        :no_capture -> :no_capture
-        {pos, len} -> String.slice(str, pos, len)
+        :no_capture ->
+          :no_capture
+
+        {pos, len} ->
+          String.slice(str, pos, len)
+
+        indexes when is_list(indexes) ->
+          Enum.map(indexes, fn {pos, len} -> String.slice(str, pos, len) end)
+
         # pass through index 0 which is always whole string
-        str when is_binary(str) -> str
+        str when is_binary(str) ->
+          str
       end
 
     cap2str(names, str, %{caps | name => substr})

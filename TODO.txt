@@ -31,3 +31,5 @@
   
 * Add generator function to the NFAs
   Use constant factor option for decay of 'more'
+  
+* Add captures to searches

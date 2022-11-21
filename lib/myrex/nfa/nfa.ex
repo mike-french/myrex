@@ -60,7 +60,7 @@ defmodule Myrex.NFA do
   @spec zero_one(T.proc()) :: T.proc()
   def zero_one(proc) do
     split = Split.init(proc, "?")
-    {split, [proc, split]}
+    {split, [split | Proc.outputs(proc)]}
   end
 
   @doc """
@@ -108,7 +108,35 @@ defmodule Myrex.NFA do
   def zero_more(proc) do
     split = Split.init(proc, "*")
     Proc.connect(proc, split)
-    {split, split}
+    split
+  end
+
+  @doc """
+  Search combinator for zero or more repetitions of any character.
+
+  Split node _S_ can cycle to the process node _P_ (more).
+  The new network only has one output from the split node.
+
+  ```
+          +---+
+          | . |
+          +---+
+           ^ |
+           | V
+          +---+    +---+
+   in --->| S |--->| P |---> outputs
+          +---+    +---+
+  ```
+  """
+  @spec search(T.proc(), boolean()) :: T.proc()
+  def search(proc, dotall?) do
+    split = dotall? |> match_any_char() |> zero_more()
+    # use a BeginGroup without an EndGroup to capture a search result
+    # cannot use EndGroup after the proc, 
+    # because the Success node at the output of proc
+    # will return results directly to the Executor
+    begin = BeginGroup.init(:search)
+    sequence([split, begin, proc])
   end
 
   # ----------------------------
@@ -135,8 +163,8 @@ defmodule Myrex.NFA do
 
   def group(procs, name) when is_list(procs) and is_name(name) do
     begin = BeginGroup.init(name)
-    enndd = EndGroup.init()
-    sequence([begin | procs] ++ [enndd])
+    endgrp = EndGroup.init()
+    sequence([begin | procs] ++ [endgrp])
   end
 
   @doc """
@@ -167,8 +195,8 @@ defmodule Myrex.NFA do
   ```
   """
   @spec sequence(T.procs()) :: T.proc()
-  def sequence([first | _] = procs) do
-    last = Enum.reduce(procs, fn next, prev -> Proc.connect(prev, next) end)
+  def sequence([first | rest]) do
+    last = Enum.reduce(rest, first, fn next, prev -> Proc.connect(prev, next) end)
     {Proc.input(first), Proc.output(last)}
   end
 
