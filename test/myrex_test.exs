@@ -12,7 +12,7 @@ defmodule Myrex.MyrexTest do
   # but these may be the same in the case of ':match'
 
   # :oneshot,
-  for mode <- [:batch] do
+  for mode <- [:oneshot, :batch] do
     test "char test #{mode}" do
       re = "ab"
       re_nfa = build(re, unquote(mode))
@@ -248,8 +248,8 @@ defmodule Myrex.MyrexTest do
       exec(:search, re_nfa, "Z", {:search, {0, 1}}, opts)
       exec(:search, re_nfa, "Zn", {:search, {0, 1}}, opts)
       exec(:search, re_nfa, "aZn", {:search, {1, 1}}, opts)
-      exec(:search, re_nfa, "ZZ", {:search, {0, 1}}, opts)
-      exec(:search, re_nfa, "aZnZs", {:search, {1, 1}}, opts)
+      exec(:search, re_nfa, "ZZ", [{:search, {0, 1}}, {:search, {1, 1}}], opts)
+      exec(:search, re_nfa, "aZnZs", [{:search, {1, 1}}, {:search, {3, 1}}], opts)
 
       opts = def_opts ++ [multiple: :all]
       exec(:search, re_nfa, "Z", {:searches, [{0, 1}]}, opts)
@@ -259,6 +259,27 @@ defmodule Myrex.MyrexTest do
       exec(:search, re_nfa, "aZaZn", {:searches, [{1, 1}, {3, 1}]}, opts)
       exec(:search, re_nfa, "aaZZ", {:searches, [{2, 1}, {3, 1}]}, opts)
       exec(:search, re_nfa, "aaZnZstZuZ", {:searches, [{2, 1}, {4, 1}, {7, 1}, {9, 1}]}, opts)
+
+      Myrex.teardown(re_nfa)
+    end
+
+    test "overlapping search test #{mode}" do
+      def_opts = [capture: :all, return: :index, graph_name: :re]
+
+      re = "ana"
+      IO.inspect(unquote(mode), label: "MODE")
+      re_nfa = build(re, unquote(mode))
+
+      opts = def_opts ++ [multiple: :first]
+      exec(:search, re_nfa, "z", :no_match, opts)
+      exec(:search, re_nfa, "ana", {:search, {0, 3}}, opts)
+      exec(:search, re_nfa, "banana", [{:search, {1, 3}}, {:search, {3, 3}}], opts)
+
+      opts = def_opts ++ [multiple: :all]
+      exec(:search, re_nfa, "z", :no_match, opts)
+      exec(:search, re_nfa, "ana", {:searches, [{0, 3}]}, opts)
+      exec(:search, re_nfa, "banana", {:searches, [{1, 3}, {3, 3}]}, opts)
+
       Myrex.teardown(re_nfa)
     end
 
@@ -356,6 +377,11 @@ defmodule Myrex.MyrexTest do
       # these will fail, but we want the detailed error message for the comparison
       fail -> assert fail == success
     end
+  end
+
+  defp exec(f, re_nfa, str, expects, opts) when is_list(expects) do
+    results = Enum.map(expects, &add_def_cap(str, &1))
+    assert do_apply(f, re_nfa, str, opts) in results
   end
 
   defp exec(f, re_nfa, str, expect, opts) do
