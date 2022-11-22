@@ -33,7 +33,7 @@ defmodule Myrex do
   The PID argument must be the `Start` process for the NFA,
   as returned from the `compile` function.
   """
-  @spec teardown(any()) :: :ok
+  @spec teardown(any()) :: :ignore | :teardown
   def teardown(maybe_pid) do
     Start.teardown(maybe_pid)
   end
@@ -55,7 +55,7 @@ defmodule Myrex do
   The prefix subgraph is torn down at the end of the operation,
   but the original NFA is not affected.
   """
-  @spec search(T.regex() | pid(), String.t(), Keyword.t()) :: T.result()
+  @spec search(T.regex() | pid(), String.t(), Keyword.t()) :: T.search_result()
 
   def search(re, str, opts \\ [])
 
@@ -92,7 +92,7 @@ defmodule Myrex do
   the options passed for batch execution
   only affect the runtime behaviour.
   """
-  @spec match(String.t() | pid(), String.t(), Keyword.t()) :: T.result()
+  @spec match(String.t() | pid(), String.t(), Keyword.t()) :: T.match_result()
 
   def match(re, str, opts \\ [])
 

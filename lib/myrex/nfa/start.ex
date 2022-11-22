@@ -19,7 +19,7 @@ defmodule Myrex.NFA.Start do
   When the start process receives a `:teardown` message, 
   the builder exits normally and all the linked NFA processes will exit.
   """
-  @spec init(T.builder(), T.maybe(String.t())) :: pid()
+  @spec init(T.builder(), nil | String.t()) :: pid()
 
   def init(builder, nil) when is_function(builder, 0) do
     Process.flag(:trap_exit, true)
@@ -33,7 +33,7 @@ defmodule Myrex.NFA.Start do
     proc_init(builder, gname)
   end
 
-  @spec build(T.builder(), T.maybe(String.t()), pid()) :: no_return()
+  @spec build(T.builder(), nil | String.t(), pid()) :: no_return()
 
   def build(builder, nil, client) when is_function(builder, 0) do
     nfa = builder.()
@@ -85,7 +85,7 @@ defmodule Myrex.NFA.Start do
   # pass a builder function that creates the NFA in the start process
   # wait for the NFA to be complete
   # return the new start process
-  @spec proc_init(T.builder(), T.maybe(String.t())) :: pid()
+  @spec proc_init(T.builder(), nil | String.t()) :: pid()
   defp proc_init(builder, gname) do
     start =
       Proc.init_parent(__MODULE__, :build, [builder, gname, self()], "start", not is_nil(gname))

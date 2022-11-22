@@ -71,7 +71,7 @@ defmodule Myrex.Executor do
   end
 
   # entry point for running the executor, which looks up configuration options
-  @spec exec(T.maybe(pid()), T.mode(), T.options(), pid()) :: no_return()
+  @spec exec(nil | pid(), T.mode(), T.options(), pid()) :: no_return()
   def exec(nfa, mode, opts, client) do
     timeout = Keyword.get(opts, :timeout, @default_timeout)
     multiple = Keyword.get(opts, :multiple, @default_multiple)
@@ -109,11 +109,11 @@ defmodule Myrex.Executor do
   @spec execute(
           T.count(),
           pid(),
-          T.maybe(pid()),
+          nil | pid(),
           T.mode(),
           timeout(),
-          T.multi(),
-          :match | :no_match | :search
+          T.multiple_flag(),
+          :no_match | :match | :search | :end_matches | :end_searches
         ) ::
           no_return()
 
@@ -188,7 +188,15 @@ defmodule Myrex.Executor do
   end
 
   @doc "Send a match result to an executor or client."
-  @spec notify_result(pid(), :no_match | :end_matches | {:partial_match, T.state()} | T.result()) ::
+  @spec notify_result(
+          pid(),
+          :no_match
+          | :end_matches
+          | :end_searches
+          | {:partial_search, T.capture_index(), T.state()}
+          | T.match_result()
+          | T.search_result()
+        ) ::
           any()
   def notify_result(exec, result) when is_pid(exec), do: send(exec, result)
 end

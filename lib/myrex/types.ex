@@ -1,12 +1,6 @@
 defmodule Myrex.Types do
   @moduledoc "Types and guards for Myrex."
 
-  # -----------------
-  # type constructors
-  # -----------------
-
-  @type maybe(t) :: t | nil
-
   # -----------------------------
   # cardinal and ordinal integers
   # -----------------------------
@@ -88,7 +82,7 @@ defmodule Myrex.Types do
   @type captures() :: %{capture_name() => capture_value()}
 
   @typedoc "Search result containing substring reference and set of captures."
-  @type search_result() :: {capture_value(), captures()}
+  @type search_captures() :: {capture_index(), captures()}
 
   @typedoc """
   The result of trying to match the regular expression.
@@ -100,21 +94,38 @@ defmodule Myrex.Types do
   If the `:multiple` option is `:all`, then a successful result is `:matches`
   with a list of captures, even if the list just has one member.
   """
-  @type result() ::
-          {:no_match
-           | :match, captures()}
+  @type match_result() ::
+          {:no_match, captures()}
+          | {:match, captures()}
           | {:matches, [captures()]}
-          | {:search, search_result()}
-          | {:searches, [search_result()]}
 
-  defguard is_result(r)
+  defguard is_match_result(r)
            when is_tuple(r) and
                   tuple_size(r) == 2 and
                   (elem(r, 0) == :no_match or
                      elem(r, 0) == :match or
-                     elem(r, 0) == :matches or
-                     elem(r, 0) == :search or
-                     elem(r, 0) == :searches)
+                     elem(r, 0) == :matches)
+
+  @typedoc """
+  The result of trying to search for the regular expression.
+
+  When the result is `:no_match`, the capture just contains 
+  key '0' with the value of the whole input string.
+
+  If the `:multiple` option is `:first`, then a successful result is a single `:search`.
+  If the `:multiple` option is `:all`, then a successful result is `:searches`
+  with a list of indexed captures, even if the list just has one member.
+  """
+  @type search_result() ::
+          {:no_match, captures()}
+          | {:search, capture_index(), captures()}
+          | {:searches, [search_captures()]}
+
+  defguard is_search_result(r)
+           when is_tuple(r) and
+                  ((tuple_size(r) == 2 and
+                      (elem(r, 0) == :no_match or elem(r, 0) == :searches)) or
+                     (tuple_size(r) == 3 and elem(r, 0) == :search))
 
   # ------------
   # lexer tokens

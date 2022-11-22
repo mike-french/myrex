@@ -90,7 +90,7 @@ defmodule Myrex.NFA.Proc do
   @doc """
   Continue a traversal by sending a new state to the next process.
   """
-  @spec traverse(T.pid(), T.state()) :: :ok
+  @spec traverse(pid(), T.state()) :: :ok
   def traverse(next, state) when is_pid(next) do
     send(next, state)
     :ok
