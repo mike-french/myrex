@@ -101,6 +101,10 @@ Two traversal strategies for ambiguous matches:
 * First - return the first match and halt execution.
 * All - wait for all traversals to complete,
   return all captures for ambiguous matches.
+  
+Simple public interface in `Myrex` module:
+* Batch - `compile` and `teardown`
+* Execution - `match` and `search`
 
 ### Captures
 
@@ -163,10 +167,10 @@ in --->| P1 |---> ... --->| Pn | ---> outputs
 Combinator for a group capture around a sequence `(P1 P2 .. Pn)`:
 
 ```
-       +-----+    +----+           +----+    +-----+
-in --->|Begin|--->| P1 |--->...--->| Pn |--->| End |---> out
-       |Group|    +----+           +----+    |Group|
-       +-----+                               +-----+
+       +-----+    +----+             +----+    +-----+
+in --->|Begin|--->| P1 |---> ... --->| Pn |--->| End |---> out
+       |Group|    +----+             +----+    |Group|
+       +-----+                                 +-----+
 ```
  Combinator for an AND sequence of peek lookahead 
  matching nodes  `M1 M2 .. Mn`:
@@ -376,8 +380,9 @@ Erlang/OTP 23 [erts-11.1] [source] [64-bit] [smp:8:8] [ds:8:8:10] [async-threads
 
 ### Pattern Modes
 
-There are two ways the REGEX can be applied to the input: _match_ and _search._
-* match
+There are two ways the REGEX can be applied to the input: 
+* `match` - an exact match of the REGEX with the whole input string.
+* `search` - find a partial match of the REGEX somewhere within the input string.
 
 The `Myrex` top-level module has separate interface 
 functions for _match()_ and _search()._
