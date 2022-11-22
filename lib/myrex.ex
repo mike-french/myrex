@@ -63,8 +63,10 @@ defmodule Myrex do
     # oneshot execution
     # executor will compile, run and teardown the NFA process network
     Process.flag(:trap_exit, true)
-    Executor.init_oneshot(".*" <> re <> ".*", str, opts)
-    do_match(str, opts)
+    # TODO - using a named group would help conversion of results
+    # using :search name should make success handling produce search result directly
+    Executor.init_oneshot(".*(" <> re <> ").*", str, opts)
+    str |> do_match(opts) |> match2search()
   end
 
   def search(start, str, opts) when is_pid(start) and is_binary(str) and is_list(opts) do
@@ -197,4 +199,30 @@ defmodule Myrex do
   end
 
   defp cap2str([], _, caps), do: caps
+
+  # convert a wrapped match result to a search result
+
+  defp match2search({:no_match, _caps} = result), do: result
+
+  defp match2search({:match, caps}) do
+    {str, caps} = Map.pop!(caps, 0)
+    {idx, caps} = Map.pop!(caps, 1)
+
+    search_caps =
+      Enum.reduce(caps, %{0 => str}, fn {k, v}, c when is_integer(k) and k > 0 ->
+        Map.put(c, k - 1, v)
+      end)
+
+    {:search, idx, search_caps}
+  end
+
+  defp match2search({:matches, capslist}) do
+    searches =
+      Enum.map(capslist, fn caps ->
+        {:search, idx, search_caps} = match2search({:match, caps})
+        {idx, search_caps}
+      end)
+
+    {:searches, searches}
+  end
 end

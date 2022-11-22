@@ -105,7 +105,7 @@ defmodule Myrex.Types do
            | :match, captures()}
           | {:matches, [captures()]}
           | {:search, search_result()}
-          | {:search, [search_result()]}
+          | {:searches, [search_result()]}
 
   defguard is_result(r)
            when is_tuple(r) and
