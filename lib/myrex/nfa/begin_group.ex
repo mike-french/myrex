@@ -1,5 +1,6 @@
 defmodule Myrex.NFA.BeginGroup do
   @moduledoc "The process at the beginning of a group capture expression."
+
   import Myrex.Types
   alias Myrex.Types, as: T
 

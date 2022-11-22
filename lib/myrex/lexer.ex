@@ -7,7 +7,7 @@ defmodule Myrex.Lexer do
   import Myrex.Types
   alias Myrex.Types, as: T
 
-  # future ? ^
+  # future ^ $
   @escape '.*+?|(){}[]-\\'
 
   defguard is_ascii(c) when is_integer(c) and c > 0 and c < 128
@@ -122,7 +122,6 @@ defmodule Myrex.Lexer do
   def tok2re(toks), do: tok2re(toks, [])
 
   # Convert a list of lexical tokens to a regular expression string.
-
   @spec tok2re(T.tokens(), charlist()) :: String.t()
 
   defp tok2re([c | toks], re) when is_char(c) and c in @escape, do: tok2re(toks, [c, ?\\ | re])
@@ -186,7 +185,7 @@ defmodule Myrex.Lexer do
   defp tok2str([?\v | toks], strs), do: tok2str(toks, [?\\, ?v | strs])
 
   defp tok2str([c | toks], strs) when is_char(c),
-    # TODO escape unicode chars \uHHHH
+    # TODO - escape unicode chars \uHHHH
     do: tok2str(toks, [?\s, ?', c, ?' | strs])
 
   defp tok2str([{:begin_group, g} | toks], strs) when is_count(g),

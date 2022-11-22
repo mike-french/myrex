@@ -57,6 +57,8 @@ defmodule Myrex.Types do
   `:multiple` how to handle multiple successful matches:
   * `:first` (default) - return the first match and truncate the traversals
   * `:all` - complete all the actual substring of the capture
+
+  `:graph_name` - (string) the filename for DOT and PNG graph diagram output
   """
   @type options() :: Keyword.t()
 
@@ -67,17 +69,11 @@ defmodule Myrex.Types do
   @type return_flag() :: :index | :binary
 
   @typedoc """
-  A capture is a substring of the input 
-  specified by a start position and length.
-  """
-  @type capture() :: {position(), count()}
-  defguard is_capture(cap)
-           when is_pos(elem(cap, 0)) and is_count1(elem(cap, 1))
+  The name for a capture group. 
 
-  @typedoc """
-  The index for a capture group. 
   Groups are assigned a 1-based index,
   and index 0 is reserved for the whole input string.
+  In the future, groups will support string named captures.
   """
   @type capture_name() :: non_neg_integer() | :search
   defguard is_name(n) when (is_integer(n) and n >= 0) or n == :search
@@ -86,10 +82,10 @@ defmodule Myrex.Types do
   @type capture_index() :: {position(), count1()}
 
   @typedoc "A capture value as an index or a string."
-  @type capture_value() :: capture_index() | String.t()
+  @type capture_value() :: :no_capture | capture_index() | String.t()
 
   @typedoc "The set of completed captures from a partial or total match."
-  @type captures() :: %{capture_name() => :no_capture | capture() | String.t()}
+  @type captures() :: %{capture_name() => capture_value()}
 
   @typedoc "Search result containing substring reference and set of captures."
   @type search_result() :: {capture_value(), captures()}
@@ -105,7 +101,8 @@ defmodule Myrex.Types do
   with a list of captures, even if the list just has one member.
   """
   @type result() ::
-          {:no_match | :match, captures()}
+          {:no_match
+           | :match, captures()}
           | {:matches, [captures()]}
           | {:search, search_result()}
           | {:search, [search_result()]}
@@ -147,7 +144,7 @@ defmodule Myrex.Types do
           | {:begin_group, :nocap | count1()}
           | {:repeat, count2()}
           # postfix parser token
-          # to include the parser stack
+          # to support the parser stack
           | {:alternate, count2()}
 
   @typedoc "Tokens emitted by the lexer and first pass of the parser."
@@ -169,13 +166,11 @@ defmodule Myrex.Types do
 
   @typedoc """
   A character range AST node within a character class AST node.
+  Character range is not a standalone leaf node.
   """
   @type char_range() :: {:char_range, char(), char()}
 
-  # TODO - is char_class allowed as a root node? add test
-
-  # note the reuse of token names as AST nodes
-
+  # note the reuse of token names as AST node names
   @typep branch_node() ::
            {:sequence, [ast()]}
            | {:group, :nocap | capture_name(), [ast()]}
@@ -237,7 +232,7 @@ defmodule Myrex.Types do
   @type groups() :: [{capture_name(), position()}]
 
   @typedoc """
-  Traversal state passed as a message between NFZ nodes.
+  Traversal state passed as a message between NFA nodes.
   The input state is the remaining string to be processed,
   and its start position within the original input.
   The group capture state is the stack of current open groups,

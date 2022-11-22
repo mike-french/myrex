@@ -1,6 +1,6 @@
 defmodule Myrex do
   @moduledoc """
-  A regular expression matcher...
+  A regular expression matcher.
   """
 
   alias Myrex.Types, as: T
@@ -31,7 +31,7 @@ defmodule Myrex do
   Tear down a compiled NFA process network at the end of batch processing.
 
   The PID argument must be the `Start` process for the NFA,
-  as returned from the `Start.init` function.
+  as returned from the `compile` function.
   """
   @spec teardown(any()) :: :ok
   def teardown(maybe_pid) do
@@ -48,10 +48,14 @@ defmodule Myrex do
   Oneshot search just wraps the regex with the wildcard, 
   compiles the NFA and runs a normal `match`.
 
-  Batch search applies a pair of _zero or more_ process combinators
-  to the existing NFA, then runs the wrapped process network.
+  Batch search applies a process combinator
+  to build a `.*` prefix subgraph for the existing NFA, 
+  then runs the wrapped process network
+  multiple times until the end of input.
+  The prefix subgraph is torn down at the end of the operation,
+  but the original NFA is not affected.
   """
-  @spec search(String.t() | pid(), String.t(), Keyword.t()) :: T.result()
+  @spec search(T.regex() | pid(), String.t(), Keyword.t()) :: T.result()
 
   def search(re, str, opts \\ [])
 
@@ -72,7 +76,7 @@ defmodule Myrex do
   end
 
   @doc """
-  Apply a regular expression to a string argument. 
+  Apply a regular expression to a string input.
 
   The first argument can be either a regular expression string,
   or the start process address of a compiled NFA process network.
@@ -80,12 +84,11 @@ defmodule Myrex do
   If a regular expression is passed as a string argument, 
   it is compiled to a one-shot NFA process network, 
   which is torn down after the string match has completed.
-  The options passed for one-shot execution
-  affect both the compile-time and run-time behaviour.
+  The options passed affect both the compile-time and run-time behaviour.
 
   If a compiled NFA is passed as a process argument,
   the options passed for batch execution
-  only affect the runtime behaviour (`:return` type).
+  only affect the runtime behaviour.
   """
   @spec match(String.t() | pid(), String.t(), Keyword.t()) :: T.result()
 
@@ -107,7 +110,8 @@ defmodule Myrex do
 
   @spec do_match(String.t(), T.options(), any()) :: no_return()
   defp do_match(str, opts, matches \\ []) do
-    # Add the whole string capture to the result, not in traverse call,
+    # Add the whole string capture to the result, 
+    # not in the initial traverse call,
     # so it does not need to be copied through every traversal.
     # Ignore options, and add it as a string (binary) 
     # not just an index reference {0,length}
@@ -115,14 +119,14 @@ defmodule Myrex do
 
     # TODO - only handle return type flag here?
     # captures should be compiled into the group and success processes?
-    # what is the difference between compile-time and run-time options?
+    # define the difference between compile-time and run-time options?
 
     receive do
       :end_matches ->
         {:matches, matches}
 
       :end_searches ->
-        # HACK ALERT - fix repeated answer!
+        # HACK ALERT - TODO fix repeated answer!
         {:searches, Enum.uniq(matches)}
 
       :no_match ->
@@ -155,6 +159,7 @@ defmodule Myrex do
     end
   end
 
+  # apply 'capture' and 'return' options to capture results
   @spec process_captures(String.t(), T.options(), T.captures()) :: T.captures()
   defp process_captures(str, opts, caps) do
     capopt = Keyword.get(opts, :capture, :all)
@@ -186,10 +191,6 @@ defmodule Myrex do
 
         indexes when is_list(indexes) ->
           Enum.map(indexes, fn {pos, len} -> String.slice(str, pos, len) end)
-
-        # pass through index 0 which is always whole string
-        str when is_binary(str) ->
-          str
       end
 
     cap2str(names, str, %{caps | name => substr})

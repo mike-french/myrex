@@ -20,11 +20,10 @@ defmodule Myrex.NFA.EndGroup do
   defp match(next) do
     receive do
       {str, pos, [{name, begin} | groups], captures, executor} ->
+        # pop the open group off the stack, update the capture results
         # capture is a start-length pair of positions in the input
         # includes zero length captures "" for `?` and `*` operators
         new_captures = Map.put(captures, name, {begin, pos - begin})
-        # pop the open group off the stack, update the capture results
-
         Proc.traverse(next, {str, pos, groups, new_captures, executor})
 
       msg ->

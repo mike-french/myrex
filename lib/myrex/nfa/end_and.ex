@@ -1,5 +1,8 @@
 defmodule Myrex.NFA.EndAnd do
-  @moduledoc "The process at the end of an AND match sequence."
+  @moduledoc """
+  The process at the end of an AND match sequence.
+  Only a negated character class uses an AND sequence.
+  """
 
   alias Myrex.NFA.Proc
 

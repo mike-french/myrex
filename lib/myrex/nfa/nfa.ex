@@ -1,7 +1,7 @@
 defmodule Myrex.NFA do
   @moduledoc """
-  An NFA process network for matching a regular expression
-  are built using a variation of Thompson's Construction
+  An NFA process network for matching a regular expression.
+  The NFA is built using a variation of Thompson's Construction
   \[[wikipedia](https://en.wikipedia.org/wiki/Thompson%27s_construction)\]
   \[[Cox](https://swtch.com/~rsc/regexp/regexp1.html)\]
 
@@ -13,14 +13,17 @@ defmodule Myrex.NFA do
   { :group,    p|[P] }   -->  { BeginGroup, EndGroup }    
   { :repeat,   N, P  }   -->  { P1, Pn }
 
-  Parallel
+  Parallel fan-out
   { :alternate,  [P] }   -->  { Split, [P] }
   { :zero_one,    p  }   -->  { Split, [P,Split] }
-  { :char_class, [CCs]   -->  { Split, [AllCCs] }
 
   Loops
   { :one_more,  P }      -->  { P,  Split }
   { :zero_more, P }      -->  { Split, Split }
+
+  Character classes: alternate or sequence
+  { :char_class, [CCs]      -->  { Split, [CCs] }
+  { :char_class_neg, [CCs]  -->  { hd(CCs), EndAnd }
 
   Atomic
     c                        MatchChar(c)
@@ -42,7 +45,7 @@ defmodule Myrex.NFA do
   # ----------------------------
 
   @doc """
-  Combinator for zero or one repetitions.
+  Combinator for zero or one repetition.
 
   Split node _S_ can bypass the process node _P_ (zero).
 
@@ -66,7 +69,7 @@ defmodule Myrex.NFA do
   @doc """
   Combinator for one or more repetitions.
 
-  Split node _S_ can cycle to the process node _P_ (more).
+  Split node _S_ can cycle back to the process node _P_ (more).
   The new network only has one output from the split node.
 
   ```
@@ -117,24 +120,27 @@ defmodule Myrex.NFA do
   Split node _S_ can cycle to the process node _P_ (more).
   The new network only has one output from the split node.
 
+    A standalone `BeginGroup` node is used to mark the 
+  beginning of the search as if it was a special case of a capture.
+  An `EndGroup` cannot be uased, because it would attach after 
+  the `Success` node at the end of the nested process subgraph,
+  so handling the end of the search must be handled in the `Executor`.
+
   ```
           +---+
           | . |
           +---+
            ^ |
            | V
-          +---+    +---+
-   in --->| S |--->| P |---> outputs
-          +---+    +---+
+          +---+    +-----+    +---+
+   in --->| S |--->|Begin|--->| P |---> outputs
+          +---+    |Group|    +---+
+                   +-----+
   ```
   """
   @spec search(T.proc(), boolean()) :: T.proc()
   def search(proc, dotall?) do
     split = dotall? |> match_any_char() |> zero_more()
-    # use a BeginGroup without an EndGroup to capture a search result
-    # cannot use EndGroup after the proc, 
-    # because the Success node at the output of proc
-    # will return results directly to the Executor
     begin = BeginGroup.init(:search)
     sequence([split, begin, proc])
   end
@@ -157,7 +163,7 @@ defmodule Myrex.NFA do
   @spec group(T.procs(), :nocap | T.capture_name()) :: T.proc()
 
   def group(procs, :nocap) when is_list(procs) do
-    # nocap group is just an anonymous sequence
+    # no-capture group is just an anonymous sequence
     sequence(procs)
   end
 
@@ -169,7 +175,7 @@ defmodule Myrex.NFA do
 
   @doc """
   Combinator for an AND sequence of peek lookahead Match nodes.
-  The peeking Match nodes are created in a negated character class.
+  The peeking Match nodes are created by a negated character class.
 
   ```
           +--+             +--+    +-----+
@@ -205,7 +211,7 @@ defmodule Myrex.NFA do
   # ----------------------------
 
   @doc """
-  Combinator for fan-out of alternate matches.
+  Combinator for fan-out of alternate choices.
 
   For Split process _S_ and processes _P1..Pn_ :
 
@@ -238,7 +244,7 @@ defmodule Myrex.NFA do
   def match_char(char, neg? \\ false) do
     accept? = inv(fn c -> c == char end, neg?)
     # negation turns Match into peek look ahead
-    Match.init(accept?, neg?, IO.chardata_to_string(caret([?', char, ?'], neg?)))
+    Match.init(accept?, neg?, caret([?', char, ?'], neg?))
   end
 
   @doc """
@@ -262,7 +268,7 @@ defmodule Myrex.NFA do
   def match_char_range({c1, c2} = cr, neg? \\ false) when is_char_range(cr) do
     accept? = inv(fn c -> c1 <= c and c <= c2 end, neg?)
     # negation turns Match into peek look ahead
-    Match.init(accept?, neg?, IO.chardata_to_string(caret([c1, ?-, c2], neg?)))
+    Match.init(accept?, neg?, caret([c1, ?-, c2], neg?))
   end
 
   # optionally invert the acceptor to be NOT the original result
@@ -271,7 +277,7 @@ defmodule Myrex.NFA do
   defp inv(accept?, true), do: fn c -> not accept?.(c) end
 
   # optionally prefix the label with '^' for negation
-  @spec caret(charlist(), boolean()) :: charlist()
-  defp caret(chars, false), do: chars
-  defp caret(chars, true), do: [?^ | chars]
+  @spec caret(charlist(), boolean()) :: String.t()
+  defp caret(chars, false), do: IO.chardata_to_string(chars)
+  defp caret(chars, true), do: IO.chardata_to_string([?^ | chars])
 end

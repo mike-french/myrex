@@ -2,7 +2,7 @@ defmodule Myrex.Parser do
   @moduledoc """
   Parse the tokenized regular expression to get an AST.
 
-  The parser has two passes.
+  The parser has two passes:
 
   The first pass reorders the linear infix token list into postfix format,
   where the operator node comes before its arguments.
@@ -154,7 +154,7 @@ defmodule Myrex.Parser do
 
   defp parse_cc([:any_char | toks], ccs, neg?) do
     # error???
-    IO.puts("Warning: anychar wildcard '.' in character class - always passes or ^fails.")
+    IO.puts("Warning: any char wildcard '.' in character class - always passes or ^fails.")
     parse_cc(toks, [:any_char | ccs], neg?)
   end
 
@@ -185,6 +185,7 @@ defmodule Myrex.Parser do
 
   # read a sequence back from the stack
   @spec pop_seq(T.tokens(), T.tokens()) :: {T.tokens(), T.tokens()}
+
   defp pop_seq([], [:begin_sequence | _]),
     do: raise(ArgumentError, message: "Parse error: empty sequence")
 
@@ -194,6 +195,7 @@ defmodule Myrex.Parser do
 
   # read a group back from the stack
   @spec pop_group(T.tokens(), T.tokens()) :: {T.tokens(), T.tokens(), T.count1()}
+
   defp pop_group([], [{:begin_group, _} | _]),
     do: raise(ArgumentError, message: "Parse error: empty group '()'")
 

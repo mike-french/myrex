@@ -8,7 +8,7 @@ defmodule Myrex.NFA.Match do
 
   @spec init(T.acceptor(), boolean(), String.t()) :: pid()
   def init(accept?, peek?, label) when is_function(accept?, 1) and is_boolean(peek?) do
-    # peek does not advance the input position
+    # peek lookahead does not advance the input position
     Proc.init_child(__MODULE__, :attach, [accept?, peek?, label], label)
   end
 

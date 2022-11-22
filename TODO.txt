@@ -33,3 +33,7 @@
   Use constant factor option for decay of 'more'
   
 * Add captures to searches
+
+* Interface and test for parallel streaming of input strings
+
+* Fix but with repeated multi-search result, see comment in myrex.ex

@@ -1,18 +1,20 @@
 defmodule Myrex.NFA.Success do
-  @moduledoc "The final node that processes a successful match."
+  @moduledoc "The final node that handles a successful match."
+
   import Myrex.Types
   alias Myrex.Types, as: T
 
   alias Myrex.Executor
   alias Myrex.NFA.Proc
 
+  @doc "Initialize with the number of groups in the regex."
   @spec init(T.count()) :: pid()
   def init(ngroup) when is_count(ngroup) do
     Proc.init_child(__MODULE__, :match, [ngroup], "success")
   end
 
   # no need for attach, because the executor is carried in the traversal state
-  # just included here so we could make an NFA node behaviour
+  # just included here so we could make an NFA node behaviour in the future
   @spec attach(any()) :: no_return()
   def attach(_) do
     raise UndefinedFunctionError, message: "Success.attach/1"
@@ -28,22 +30,21 @@ defmodule Myrex.NFA.Success do
 
       {"", len, [{:search, begin}], captures, executor} ->
         # finish state of the NFA and end of input, so a complete search match
-        # open_group contains a special search capture
+        # open group contains a special search capture token
         captures = default_captures(captures, ngroup)
+        # send a search result including the index of the search capture
         Executor.notify_result(executor, {:search, {begin, len - begin}, captures})
 
       {str, pos, [{:search, begin}], _caps, executor} = state when byte_size(str) > 0 ->
         # finish state of the NFA, but not end of input
         # so NFA matches a prefix of the original input
         # for a search, this is a successful partial match
-        IO.inspect(state, label: "Success: partial match in search mode")
         Executor.notify_result(executor, {:partial_search, {begin, pos - begin}, state})
 
-      {str, _pos, _open_groups, _caps, executor} = state when byte_size(str) > 0 ->
+      {str, _pos, _open_groups, _caps, executor} when byte_size(str) > 0 ->
         # finish state of the NFA, but not end of input
         # so NFA matches a prefix of the original input
         # for a normal match, this is a no_match failure
-        IO.inspect(state, label: "Success: no match in match mode")
         Executor.notify_result(executor, :no_match)
 
       msg ->
@@ -54,8 +55,8 @@ defmodule Myrex.NFA.Success do
   end
 
   # add default captures
-
   @spec default_captures(T.captures(), T.count()) :: T.captures()
+
   defp default_captures(caps, 0), do: caps
 
   defp default_captures(caps, igroup) do

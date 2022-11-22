@@ -5,7 +5,7 @@ defmodule Myrex.AST do
   Combinator branch nodes
 
   { :sequence,    [n] }     always list, no name
-  { :group, Id,   [n] }     a group is a special named sequence
+  { :group, ID,   [n] }     a group is a special named sequence
 
   { :alternate,   [n] }     two or more nodes
 
@@ -16,38 +16,39 @@ defmodule Myrex.AST do
 
   Matcher leaf nodes
 
-    C                    char is a char literal
-    :any_char             
-  { :char_class, [C|cr] }
-  where cr is  { C1, C2 }   char range C2>C1
+    C                       char is a char literal
+    :any_char               any character wilcard
+  { :char_class, [C|cr] }   set of characters or character ranges
+                            where cr is char range { C1, C2 } and C2>C1
 
   """
+
   import Myrex.Types
   alias Myrex.Types, as: T
 
-  @doc "Convert an AST tree of operators to a regular expression."
+  @doc "Convert an AST tree of operators to a regular expression string."
   @spec ast2re(T.ast()) :: String.t()
   def ast2re(ast), do: ast |> node2re() |> List.wrap() |> IO.chardata_to_string()
 
-  @doc "Convert an AST node to a regular expression."
+  # Convert an AST node to a regular expression.
   @spec node2re(T.ast() | [T.ast()]) :: IO.chardata()
-  def node2re(nodes) when is_list(nodes), do: Enum.map(nodes, &node2re(&1))
-  def node2re(str) when is_binary(str), do: str |> to_charlist() |> node2re()
-  def node2re(c) when is_char(c), do: esc(c)
-  def node2re(:any_char), do: ?.
-  def node2re({:sequence, nodes}), do: [node2re(nodes)]
-  def node2re({:group, :nocap, nodes}), do: [?(, ??, ?:, node2re(nodes), ?)]
-  def node2re({:group, _, nodes}), do: [?(, node2re(nodes), ?)]
+  defp node2re(nodes) when is_list(nodes), do: Enum.map(nodes, &node2re(&1))
+  defp node2re(str) when is_binary(str), do: str |> to_charlist() |> node2re()
+  defp node2re(c) when is_char(c), do: esc(c)
+  defp node2re(:any_char), do: ?.
+  defp node2re({:sequence, nodes}), do: [node2re(nodes)]
+  defp node2re({:group, :nocap, nodes}), do: [?(, ??, ?:, node2re(nodes), ?)]
+  defp node2re({:group, _, nodes}), do: [?(, node2re(nodes), ?)]
 
-  def node2re({:alternate, [h | ns]}),
+  defp node2re({:alternate, [h | ns]}),
     do: [node2re(h) | Enum.map(ns, fn n -> [?|, node2re(n)] end)]
 
-  def node2re({:zero_one, node}), do: [node2re(node), ??]
-  def node2re({:one_more, node}), do: [node2re(node), ?+]
-  def node2re({:zero_more, node}), do: [node2re(node), ?*]
-  def node2re({:repeat, r, node}), do: [node2re(node), ?{, Integer.to_string(r), ?}]
-  def node2re({:char_class, ccs}), do: [?[, Enum.map(ccs, &cc2re(&1)), ?]]
-  def node2re({:char_class_neg, ccs}), do: [?[, ?^, Enum.map(ccs, &cc2re(&1)), ?]]
+  defp node2re({:zero_one, node}), do: [node2re(node), ??]
+  defp node2re({:one_more, node}), do: [node2re(node), ?+]
+  defp node2re({:zero_more, node}), do: [node2re(node), ?*]
+  defp node2re({:repeat, r, node}), do: [node2re(node), ?{, Integer.to_string(r), ?}]
+  defp node2re({:char_class, ccs}), do: [?[, Enum.map(ccs, &cc2re(&1)), ?]]
+  defp node2re({:char_class_neg, ccs}), do: [?[, ?^, Enum.map(ccs, &cc2re(&1)), ?]]
 
   # Convert a character class element to text format.
   @spec cc2re(char() | T.char_pair()) :: IO.chardata()

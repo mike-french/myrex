@@ -5,9 +5,9 @@ defmodule Myrex.NFA.Proc do
   and one or more output processes.
 
   The network is built, then the output processes 
-  wait for a connection event from a downstream process..
+  wait for a connection event from a downstream process.
   A connection is made by sending an input address (PID)
-  as a message to an output process.
+  in an `attach` message to the output processes.
 
   A network is represented by one of these PID structures:
   * `InOut` shorthand for `{ InOut, InOut }`
@@ -82,12 +82,10 @@ defmodule Myrex.NFA.Proc do
   def output({_, output}) when is_pid(output), do: output
   def output({_, outputs}) when is_list(outputs), do: outputs
 
-  # gather all the output PIDs from a set of networks
+  # gather all the output PIDs from a set of process networks
   @spec outputs(T.proc() | T.procs()) :: [pid()]
   def outputs(proc) when is_proc(proc), do: List.wrap(output(proc))
-
-  def outputs(procs) when is_list(procs),
-    do: procs |> Enum.map(&output/1) |> List.flatten()
+  def outputs(procs) when is_list(procs), do: procs |> Enum.map(&output/1) |> List.flatten()
 
   @doc """
   Continue a traversal by sending a new state to the next process.
@@ -123,7 +121,8 @@ defmodule Myrex.NFA.Proc do
   end
 
   def init_parent(m, f, a, name, true) do
-    # intercept and forward the NFA graph parent process
+    # bootstrap the graph from a spawned local function
+    # then execute the NFA graph parent process
     spawn_link(__MODULE__, :parent, [m, f, a, name])
   end
 

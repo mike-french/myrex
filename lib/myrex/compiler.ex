@@ -1,5 +1,5 @@
 defmodule Myrex.Compiler do
-  @moduledoc "Public interface to build an NFA from an AST."
+  @moduledoc "Build an NFA process network from a regular expression."
 
   alias Myrex.Types, as: T
 
@@ -86,7 +86,7 @@ defmodule Myrex.Compiler do
 
   defp ast2nfa({:repeat, nrep, node}, opts) do
     # TODO - implement native repeat process in NFA
-    # this lazy code makes multiple copies of the subgraph 
+    # this naive hack code makes multiple copies of the subgraph 
     # TODO - implement range repeats to handle all quantifiers:
     # bounded {N,M} and unbounded {N,} 
     1..nrep
@@ -106,7 +106,7 @@ defmodule Myrex.Compiler do
   end
 
   defp ast2nfa({:char_class_neg, ccs}, opts) do
-    # negated char class is AND sequence of negated elements
+    # negated char class is AND sequence of negated (peek lookahead) elements
     ccs |> Enum.map(&cc2nfa(&1, opts, true)) |> NFA.and_sequence()
   end
 
@@ -126,7 +126,8 @@ defmodule Myrex.Compiler do
   end
 
   defp cc2nfa(:any_char, opts, neg?) do
-    # always pass or ^fail
+    # is any_char allowed in char class???
+    # always passes or ^fails 
     opts
     |> Keyword.get(:dotall, false)
     |> NFA.match_any_char(neg?)

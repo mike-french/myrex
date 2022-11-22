@@ -4,6 +4,7 @@ defmodule Myrex.Executor do
   The executor manages the execution of the NFA
   and collects the result.
   """
+
   import Myrex.Types
   alias Myrex.Types, as: T
 
@@ -20,7 +21,6 @@ defmodule Myrex.Executor do
   Initialize a batch matching operation. 
   The client to receive results is the calling process (self).
   The NFA is owned by a separate builder process.
-  The client should initiate traversal through the NFA builder process.
   """
   @spec init_batch(pid(), String.t(), T.options()) :: pid()
   def init_batch(nfa, str, opts) when is_pid(nfa) and is_binary(str) and is_list(opts) do
@@ -34,7 +34,6 @@ defmodule Myrex.Executor do
   Initialize a one-shot matching operation. 
   The client to receive results is the calling process (self).
   The NFA is owned by this executor process.
-  The traversal will be initiated in the new executor process.
   """
   @spec init_oneshot(T.regex(), String.t(), T.options()) :: pid()
   def init_oneshot(re, str, opts) when is_binary(re) and is_binary(str) and is_list(opts) do
@@ -48,9 +47,11 @@ defmodule Myrex.Executor do
 
   @doc """
   Initialize a batch search matching operation. 
+
   The client to receive results is the calling process (self).
   The existing NFA is owned by a separate builder process (Start).
-  Create a new prefix subgraph to implement zero or more wildcard for any character.
+
+  Create a new prefix subgraph to implement zero or more any char wildcards.
   Connect the prefix subgraph to the existing NFA.
   Return the new Start process for the prefix subgraph. 
   The client should initiate traversal through the new Start process.
@@ -69,6 +70,7 @@ defmodule Myrex.Executor do
     executor
   end
 
+  # entry point for running the executor, which looks up configuration options
   @spec exec(T.maybe(pid()), T.mode(), T.options(), pid()) :: no_return()
   def exec(nfa, mode, opts, client) do
     timeout = Keyword.get(opts, :timeout, @default_timeout)
@@ -128,12 +130,13 @@ defmodule Myrex.Executor do
         execute(n + delta, client, nfa, mode, timeout, multi, result_type)
 
       :no_match ->
-        IO.inspect({n, mode}, label: "Exec: no match in mode")
         # failure reduces number of traversals
         execute(n - 1, client, nfa, mode, timeout, multi, result_type)
 
       {:match, _} = success when mode == :mode_match ->
+        # match success at end of input
         notify_result(client, success)
+
         # for a one-shot execution, with all NFA processes linked to this one
         # exiting after the first match will kill the NFA process network
         if multi == :first do
@@ -147,8 +150,8 @@ defmodule Myrex.Executor do
 
       {:search, _index, _caps} = success when mode == :mode_search ->
         # search success at end of input
-        IO.inspect(inspect(success), label: "Exec: match in search mode")
         notify_result(client, success)
+
         # for a batch search, only the prefix wildcard subgraph is linked
         # so the main compiled nfa will survive the exit
         if multi == :first do
@@ -160,10 +163,10 @@ defmodule Myrex.Executor do
         # and forces current result to be a search
         execute(n - 1, client, nfa, mode, timeout, multi, :end_searches)
 
-      {:partial_search, index, {str, pos, _, captures, _exec}} = msg when mode == :mode_search ->
+      {:partial_search, index, {str, pos, _, captures, _exec}} when mode == :mode_search ->
         # search success but not at end of input
-        IO.inspect(inspect(msg), label: "Exec: partial match in search mode, continue ...")
         notify_result(client, {:search, index, captures})
+
         # for a batch search, only the prefix wildcard subgraph is linked
         # so the main compiled nfa will survive the exit
         if multi == :first do
@@ -173,6 +176,7 @@ defmodule Myrex.Executor do
 
         # in search all mode, partial match injects a new traversal
         Proc.traverse(nfa, {str, pos, [], %{}, self()})
+
         # the total number of traversals stays the same
         execute(n, client, nfa, mode, timeout, multi, :end_searches)
 
