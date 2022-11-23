@@ -222,12 +222,12 @@ defmodule Myrex.MyrexTest do
       Myrex.teardown(re_nfa)
     end
 
-    test "alt_group test #{mode}" do
-      re = "(ab)|(cd)"
+    test "alt test #{mode}" do
+      re = "a|b|c|d"
       re_nfa = build(re, unquote(mode))
 
-      exec(:match, re_nfa, "ab", {:match, %{1 => "ab", 2 => :no_capture}})
-      exec(:match, re_nfa, "cd", {:match, %{1 => :no_capture, 2 => "cd"}})
+      exec(:match, re_nfa, "a", :match)
+      exec(:match, re_nfa, "c", :match)
 
       exec(:match, re_nfa, "", :no_match)
       exec(:match, re_nfa, "z", :no_match)
