@@ -41,7 +41,15 @@ defmodule Myrex do
   @doc """
   Search for a regular expression pattern in an input string.
 
-  Search with an RE for a single result is equivalent to wrapping
+    The first argument can be either a regular expression string,
+  or the start process address of a compiled NFA process network.
+
+  If the `:multiple` option is `:one`, 
+  then the first match to complete is returned with a `:search` result tuple.
+    If the `:multiple` option is `:all`, 
+  then all matches are returned with a `:searches` result tuple.
+
+  Search with a REGEX for one result is equivalent to wrapping
   the regex with the wildcard expression `.*`. 
   For example, `"abc" ~> ".*abc.*"`.
 
@@ -49,11 +57,14 @@ defmodule Myrex do
   compiles the NFA and runs a normal `match`.
 
   Batch search applies a process combinator
-  to build a `.*` prefix subgraph for the existing NFA, 
-  then runs the wrapped process network
-  multiple times until the end of input.
+  to build a `.*` prefix subgraph for the existing NFA.
+  If the  `:multiple` option is `:all`, 
+  then execution is restarted after the first match,
+  and continues to be repeated until the end of the string.
   The prefix subgraph is torn down at the end of the operation,
   but the original NFA is not affected.
+
+  When there
   """
   @spec search(T.regex() | pid(), String.t(), Keyword.t()) :: T.search_result()
 
@@ -82,6 +93,11 @@ defmodule Myrex do
 
   The first argument can be either a regular expression string,
   or the start process address of a compiled NFA process network.
+
+  If the `:multiple` option is `:one`, 
+  then the first match to complete is returned with a `:match` result tuple.
+    If the `:multiple` option is `:all`, 
+  then all matches are returned with a `:matches` result tuple.
 
   If a regular expression is passed as a string argument, 
   it is compiled to a one-shot NFA process network, 
@@ -128,8 +144,7 @@ defmodule Myrex do
         {:matches, matches}
 
       :end_searches ->
-        # HACK ALERT - TODO fix repeated answer!
-        {:searches, Enum.uniq(matches)}
+        {:searches, Enum.sort(Enum.uniq(matches))}
 
       :no_match ->
         {:no_match, %{0 => str}}
@@ -137,16 +152,16 @@ defmodule Myrex do
       {:match, caps} ->
         caps = process_captures(str, opts, caps)
 
-        case Keyword.get(opts, :multiple, :first) do
-          :first -> {:match, caps}
+        case Keyword.get(opts, :multiple, :one) do
+          :one -> {:match, caps}
           :all -> do_match(str, opts, [caps | matches])
         end
 
       {:search, index, caps} ->
         caps = process_captures(str, opts, caps)
 
-        case Keyword.get(opts, :multiple, :first) do
-          :first -> {:search, index, caps}
+        case Keyword.get(opts, :multiple, :one) do
+          :one -> {:search, index, caps}
           :all -> do_match(str, opts, [{index, caps} | matches])
         end
 
@@ -223,6 +238,6 @@ defmodule Myrex do
         {idx, search_caps}
       end)
 
-    {:searches, searches}
+    {:searches, Enum.sort(searches)}
   end
 end

@@ -14,7 +14,7 @@ defmodule Myrex.Executor do
   alias Myrex.NFA.Start
 
   @default_timeout 1_000
-  @default_multiple :first
+  @default_multiple :one
   @default_dotall false
 
   @doc """
@@ -89,14 +89,15 @@ defmodule Myrex.Executor do
   that implement quantifiers and alternate choices.
   The count is decremented by failed matches.
 
-  If the `:multiple` flag is `:first`, then
-  the first successful match will return a `:match` result
-  and the `Executor` will exit normally.
+  If the `:multiple` flag is `:one`, then
+  the first successful match to complete execution
+  will return a `:match` result and the `Executor` will exit normally.
+  The `:one` match is not necessarily the first in order in the input string.
 
-  If the `:multiple` flag is `:all`, then
-  the first successful match will return a `:match` result
-  and the `Executor` will continue to report further successful matches.
-  When all the traversals finish, the `Executor` will exit normally.
+  If the `:multiple` flag is `:all`, 
+  the `Executor` will collect all successful matches.
+  When all the traversals finish, 
+  the `Executor` will return all matches and exit normally.
 
   If all traversals finish with no successful match,
   then a `:no_match` result is reported, 
@@ -139,7 +140,7 @@ defmodule Myrex.Executor do
 
         # for a one-shot execution, with all NFA processes linked to this one
         # exiting after the first match will kill the NFA process network
-        if multi == :first do
+        if multi == :one do
           Start.teardown(nfa)
           exit(:normal)
         end
@@ -154,7 +155,7 @@ defmodule Myrex.Executor do
 
         # for a batch search, only the prefix wildcard subgraph is linked
         # so the main compiled nfa will survive the exit
-        if multi == :first do
+        if multi == :one do
           Start.teardown(nfa)
           exit(:normal)
         end
@@ -169,7 +170,7 @@ defmodule Myrex.Executor do
 
         # for a batch search, only the prefix wildcard subgraph is linked
         # so the main compiled nfa will survive the exit
-        if multi == :first do
+        if multi == :one do
           Start.teardown(nfa)
           exit(:normal)
         end

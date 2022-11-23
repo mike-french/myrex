@@ -244,7 +244,7 @@ defmodule Myrex.MyrexTest do
       IO.inspect(unquote(mode), label: "MODE")
       re_nfa = build(re, unquote(mode))
 
-      opts = def_opts ++ [multiple: :first]
+      opts = def_opts ++ [multiple: :one]
       exec(:search, re_nfa, "Z", {:search, {0, 1}}, opts)
       exec(:search, re_nfa, "Zn", {:search, {0, 1}}, opts)
       exec(:search, re_nfa, "aZn", {:search, {1, 1}}, opts)
@@ -270,7 +270,7 @@ defmodule Myrex.MyrexTest do
       IO.inspect(unquote(mode), label: "MODE")
       re_nfa = build(re, unquote(mode))
 
-      opts = def_opts ++ [multiple: :first]
+      opts = def_opts ++ [multiple: :one]
       exec(:search, re_nfa, "XYZ", :no_match, opts)
       exec(:search, re_nfa, "abc", {:search, {0, 3}, %{1 => {1, 2}}}, opts)
 
@@ -331,11 +331,11 @@ defmodule Myrex.MyrexTest do
       re_nfa = build(re, unquote(mode))
 
       expect = {:matches, [%{1 => "", 2 => "a"}, %{1 => "a", 2 => ""}]}
-      exec(:match, re_nfa, "a", expect, opts ++ [multiple: :first])
+      exec(:match, re_nfa, "a", expect, opts ++ [multiple: :one])
       exec(:match, re_nfa, "a", expect, opts ++ [multiple: :all])
 
       expect = {:matches, [%{1 => "", 2 => "aa"}, %{1 => "a", 2 => "a"}]}
-      exec(:match, re_nfa, "aa", expect, opts ++ [multiple: :first])
+      exec(:match, re_nfa, "aa", expect, opts ++ [multiple: :one])
       exec(:match, re_nfa, "aa", expect, opts ++ [multiple: :all])
 
       Myrex.teardown(re_nfa)
@@ -349,8 +349,8 @@ defmodule Myrex.MyrexTest do
       {re, str} = dup(n)
       re_nfa = build(re, unquote(mode))
 
-      # TODO - iterate over n and get performance of first/all
-      do_apply(:match, re_nfa, str, opts ++ [multiple: :first])
+      # TODO - iterate over n and get performance of one/all
+      do_apply(:match, re_nfa, str, opts ++ [multiple: :one])
 
       if n < 10 do
         {:matches, all} = do_apply(:match, re_nfa, str, opts ++ [multiple: :all, timeout: 10_000])
@@ -415,7 +415,7 @@ defmodule Myrex.MyrexTest do
     {:searches, expect_srchs} = success = add_def_cap(str, expects)
 
     case do_apply(:search, re_nfa, str, opts) do
-      {:searches, actual_srchs} -> assert Enum.sort(expect_srchs) == Enum.sort(actual_srchs)
+      {:searches, actual_srchs} -> assert Enum.sort(expect_srchs) == actual_srchs
       # these will fail, but we want the detailed error message for the comparison
       fail -> assert fail == success
     end

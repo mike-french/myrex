@@ -98,7 +98,7 @@ Two execution patterns:
 * Oneshot - dedicated independent network is built and torn down for each input. 
 
 Two traversal strategies for ambiguous matches:
-* First - return the first match and halt execution.
+* One - return the first match and halt execution.
 * All - wait for all traversals to complete,
   return all captures for ambiguous matches.
   
@@ -342,12 +342,15 @@ that execute in parallel as an NFA, so they cannot choose
 `greedy` or `non-greedy` behaviour.
 
 However, there is an option to choose how multiple matches are handled:
-* _First_ - stop at the first successful match and return the capture.
+* _One_ - stop at the first successful match and return the capture.
   If it is a oneshot execution, then teardown the NFA process network.
   If it is a batch execution, then just halt the `Executor` process.
 * _All_ - wait for all traversals to complete and return all possible captures.
 
-The first match is non-deterministic - the clue is in the name _*N*_ FA :)
+The _One_ match is non-deterministic - the clue is in the name _*N*_ FA :)
+The match is not necessarily the first in order in the input string,
+it is just the first successful traversal to complete execution.
+
 The actual outcome depends on the Erlang BEAM scheduler.
 If the regular expression is not ambiguous, then the option should be _first,_
 because there may be a long delay to wait for all failure traversals to finish.
@@ -375,17 +378,17 @@ M(4) = [1,4,6,4,1] * [1,4,10,20,35] = 1+16+60+80+35 = 192
   
   ![Zero or more](images/pascals-triangle-3-4-small.png)
 
-Here is the number of traversals _M(n)_ for each value of _n,_
+Here is the number of traversals _S(n)_ for each value of _n,_
 and the elapsed time in seconds (s) for _first_ and _all_ matches
-(except for the ~0 timings, which are in microseconds):
+(except for the ~0 timings, which are in microseconds, _us_ ):
 
 ```
 +------+---+---+----+-----+-------+-------+--------+---------+---------+
 |  n   | 1 | 2 |  3 |   4 |     5 |     6 |      7 |       8 |       9 |
-| M(n) | 2 | 8 | 38 | 192 | 1,002 | 5,336 | 28,814 | 157,184 | 864,146 |
+| S(n) | 2 | 8 | 38 | 192 | 1,002 | 5,336 | 28,814 | 157,184 | 864,146 |
 +------+---+---+----+-----+-------+-------+--------+---------+---------+
 |first |                                  | < 1 us |  < 1 us |   0.015 |
-|all   |                                  |  0.250 |   1.485 |   9.625 |
+| all  |                                  |  0.250 |   1.485 |   9.625 |
 +------+---+---+----+-----+-------+-------+--------+---------+---------+
 
 ```
@@ -437,22 +440,23 @@ Oneshot execution:
 {:match, _}    = Myrex.match("(ab)|(cd)", "ab")
 {:mo_match, _} = Myrex.match("(ab)|(cd)", "XY")
 
-{:search, {4,1}, _} = Myrex.search("Z", "abcdZefgh")
+{:search, {2,2}, _} = Myrex.search("(ab)|(cd)", "XYabZ")
 ```
 
 Batch execution:
 ```
 nfa = Myrex.compile("(ab)|(cd)")
 
-{:match, _} = Myrex.match(nfa, "ab")
-{:match, _} = Myrex.match(nfa, "cd")
-{:no_match, _} = Myrex.match(nfa, "XY")
+  {:match, _}    = Myrex.match(nfa, "cd")
+  {:no_match, _} = Myrex.match(nfa, "XY")
 
-{:search, {2,2}, _} = Myrex.search(nfa, "XYabZ")
+  {:search, {2,2}, _} = Myrex.search(nfa, "XYabZ")
+  
+  {:searches, [{{3,2}, _}, {8,2}, _}] } =
+      Myrex.search(nfa, "PQRabSTUcdVW", [multiple: :all])
 
 :teardown = Myrex.teardown(nfa)
 
-{:search, {4,1}, _} = Myrex.search(nfa, "abcdZefgh")
 ```
 
 ### Options

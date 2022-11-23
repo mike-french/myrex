@@ -49,7 +49,7 @@ defmodule Myrex.Types do
   `:timeout` (default 1000ms) - the timeout (ms) for executing a string match
 
   `:multiple` how to handle multiple successful matches:
-  * `:first` (default) - return the first match and truncate the traversals
+  * `:one` (default) - return the first match and truncate the traversals
   * `:all` - complete all the actual substring of the capture
 
   `:graph_name` - (string) the filename for DOT and PNG graph diagram output
@@ -58,7 +58,7 @@ defmodule Myrex.Types do
 
   @type option_key() :: :dotall | :return | :capture | :timeout | :multiple
 
-  @type multiple_flag() :: :first | :all
+  @type multiple_flag() :: :one | :all
   @type capture_flag() :: :none | :named | :all
   @type return_flag() :: :index | :binary
 
@@ -90,7 +90,7 @@ defmodule Myrex.Types do
   When the result is `:no_match`, the capture just contains 
   key '0' with the value of the whole input string.
 
-  If the `:multiple` option is `:first`, then a successful result is a single `:match`.
+  If the `:multiple` option is `:one`, then a successful result is a single `:match`.
   If the `:multiple` option is `:all`, then a successful result is `:matches`
   with a list of captures, even if the list just has one member.
   """
@@ -112,7 +112,7 @@ defmodule Myrex.Types do
   When the result is `:no_match`, the capture just contains 
   key '0' with the value of the whole input string.
 
-  If the `:multiple` option is `:first`, then a successful result is a single `:search`.
+  If the `:multiple` option is `:one`, then a successful result is a single `:search`.
   If the `:multiple` option is `:all`, then a successful result is `:searches`
   with a list of indexed captures, even if the list just has one member.
   """
