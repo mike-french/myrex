@@ -430,7 +430,30 @@ at the end of execution, but the main NFA is not changed.
 
 ### Public Interface
 
-`myrex` module
+The main public interface is in the `Myrex` top-level module.
+
+Oneshot execution:
+```
+{:match, _}    = Myrex.match("(ab)|(cd)", "ab")
+{:mo_match, _} = Myrex.match("(ab)|(cd)", "XY")
+
+{:search, {4,1}, _} = Myrex.search("Z", "abcdZefgh")
+```
+
+Batch execution:
+```
+nfa = Myrex.compile("(ab)|(cd)")
+
+{:match, _} = Myrex.match(nfa, "ab")
+{:match, _} = Myrex.match(nfa, "cd")
+{:no_match, _} = Myrex.match(nfa, "XY")
+
+{:search, {2,2}, _} = Myrex.search(nfa, "XYabZ")
+
+:teardown = Myrex.teardown(nfa)
+
+{:search, {4,1}, _} = Myrex.search(nfa, "abcdZefgh")
+```
 
 ### Options
 
@@ -461,6 +484,8 @@ The currently supported keys and values are:
 
 
 ### Examples
+
+`TODO`
 
 ## Performance
 
