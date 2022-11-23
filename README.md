@@ -379,7 +379,7 @@ M(4) = [1,4,6,4,1] * [1,4,10,20,35] = 1+16+60+80+35 = 192
   ![Zero or more](images/pascals-triangle-3-4-small.png)
 
 Here is the number of traversals _S(n)_ for each value of _n,_
-and the elapsed time in seconds (s) for _first_ and _all_ matches
+and the elapsed time in seconds (s) for _one_ and _all_ matches
 (except for the ~0 timings, which are in microseconds, _us_ ):
 
 ```
@@ -387,7 +387,7 @@ and the elapsed time in seconds (s) for _first_ and _all_ matches
 |  n   | 1 | 2 |  3 |   4 |     5 |     6 |      7 |       8 |       9 |
 | S(n) | 2 | 8 | 38 | 192 | 1,002 | 5,336 | 28,814 | 157,184 | 864,146 |
 +------+---+---+----+-----+-------+-------+--------+---------+---------+
-|first |                                  | < 1 us |  < 1 us |   0.015 |
+| one  |                                  | < 1 us |  < 1 us |   0.015 |
 | all  |                                  |  0.250 |   1.485 |   9.625 |
 +------+---+---+----+-----+-------+-------+--------+---------+---------+
 
@@ -481,12 +481,16 @@ The currently supported keys and values are:
 `:timeout` (integer, default 1000ms) - the timeout (ms) for executing a string match.
 
 `:multiple` decide behviour when the regular expression is ambiguous:
-* `:first` (default) - stop at the first successful match, return the capture.
+* `:one` (default) - stop at the first successful match, return the capture.
   If it is a oneshot execution, then teardown the NFA process network.
   If it is a batch execution, then just halt the `Executor` process.
 * `:all` - wait for all traversals to complete and return all possible captures.
 
-
+`:graph_name` - a flag or filename for DOT and PNG graph diagram output:
+* `nil` (default) - no graph output.
+* `:re` - use the REGEX as the filename, with suitable escaping and truncation.
+* _filename_ (string) - the filename to use.
+  
 ### Examples
 
 `TODO`
