@@ -167,7 +167,7 @@ defmodule Myrex.NFA.Graph do
   end
 
   # convert characters not allowed in Windows or Unix filenames
-  # truncate to the maximum filename length
+  # truncate to the maximum filename length (allowing for filetype)
   @spec escape(String.t()) :: String.t()
   defp escape(name) do
     name

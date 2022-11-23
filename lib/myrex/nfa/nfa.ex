@@ -244,7 +244,7 @@ defmodule Myrex.NFA do
   def match_char(char, neg? \\ false) do
     accept? = inv(fn c -> c == char end, neg?)
     # negation turns Match into peek look ahead
-    Match.init(accept?, neg?, caret([?', char, ?'], neg?))
+    Match.init(accept?, neg?, caret(char, neg?))
   end
 
   @doc """
@@ -260,7 +260,7 @@ defmodule Myrex.NFA do
     # anychar wildcard '.' not allowed in negated character class?
     accept? = inv(fn c -> dotall? or c != ?\n end, neg?)
     # negation turns Match into peek look ahead
-    Match.init(accept?, neg?, caret('.', neg?))
+    Match.init(accept?, neg?, caret(?., neg?))
   end
 
   @doc "Match any character in the range between two characters (inclusive)."
@@ -268,7 +268,7 @@ defmodule Myrex.NFA do
   def match_char_range({c1, c2} = cr, neg? \\ false) when is_char_range(cr) do
     accept? = inv(fn c -> c1 <= c and c <= c2 end, neg?)
     # negation turns Match into peek look ahead
-    Match.init(accept?, neg?, caret([c1, ?-, c2], neg?))
+    Match.init(accept?, neg?, caret(c1, c2, neg?))
   end
 
   # optionally invert the acceptor to be NOT the original result
@@ -277,7 +277,16 @@ defmodule Myrex.NFA do
   defp inv(accept?, true), do: fn c -> not accept?.(c) end
 
   # optionally prefix the label with '^' for negation
-  @spec caret(charlist(), boolean()) :: String.t()
-  defp caret(chars, false), do: IO.chardata_to_string(chars)
-  defp caret(chars, true), do: IO.chardata_to_string([?^ | chars])
+
+  @spec caret(char(), boolean()) :: String.t()
+  defp caret(c, false), do: IO.chardata_to_string(chr(c))
+  defp caret(c, true), do: IO.chardata_to_string([?^ | chr(c)])
+
+  @spec caret(char(), char(), boolean()) :: String.t()
+  defp caret(c1, c2, false), do: IO.chardata_to_string(chrs(c1, c2))
+  defp caret(c1, c2, true), do: IO.chardata_to_string([?^ | chrs(c1, c2)])
+
+  defp chrs(c1, c2), do: [chr(c1), ?-, chr(c2)]
+
+  defp chr(c), do: [?', c, ?']
 end
