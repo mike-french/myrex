@@ -172,6 +172,12 @@ in --->|Begin|--->| P1 |---> ... --->| Pn |--->| End |---> out
        |Group|    +----+             +----+    |Group|
        +-----+                                 +-----+
 ```
+  Example for REGEX `"(ab)"`:
+  
+  ![Group capture](images/(ab).png)
+  
+  The `BeginGroup` and `EndGroup` are labelled with `(` and `)`.
+
  Combinator for an AND sequence of peek lookahead 
  matching nodes  `M1 M2 .. Mn`:
  The peeking nodes are created in a negated character class,
@@ -186,6 +192,11 @@ in --->|Begin|--->| P1 |---> ... --->| Pn |--->| End |---> out
           +--+             +--+    | AND |
                                    +-----+
   ```
+  Example for REGEX `[^0-9p]`:
+  
+  ![Negated character class](images/[^0-9p].png)
+  
+  The `EndAnd` node is labelled with `[^]`.
   
 #### Alternate Choice
 
@@ -205,8 +216,24 @@ with `Split` process _S_ :
                 -| Pn |---> outputs
                  +----+
 ```
+  Example for REGEX `a|b|c|d`:
+  
+  ![Alternate choice](images/a_vbar_b_vbar_c_vbar_d.png)
+  
+  The `Split` node for alternate choice is labelled with `|`.
+
 Character classes `[...]` are implemented as alternate choices
 for all the enclosed characters and character ranges.
+
+  Example for REGEX `[a-dZ]`:
+  
+  ![Character class](images/[a-dZ].png)
+  
+  The `Split` node for a positive character class is labelled with `[]`.
+  
+Example of a choice between two groups with REGEX `(ab)|(cd)`:
+  
+  ![Character class](images/(ab)_vbar_(cd).png)
 
 #### Quantifiers
 
@@ -225,6 +252,10 @@ Combinator for _zero or one_ repetitions `P?`.
         +---+
 ```
 
+  Example for REGEX `t?`:
+  
+  ![Zero or one](images/t_qmark.png)
+
 Combinator for _one or more_ repetitions `P+`. 
 
 `Split` node _S_ can cycle back to the process node _P_ (more).
@@ -240,6 +271,10 @@ The new network only has one output from the split node.
         | S |---> output
         +---+
 ```
+  Example for REGEX `j+`:
+  
+  ![One or more](images/j+.png)
+  
 Combinator for _zero or more_ repetitions `P*`.
 
 `Split` node _S_ can cycle through the process node _P_ (more).
@@ -256,7 +291,10 @@ The new network only has one output from the split node.
  in --->| S |---> output
         +---+
 ```
-
+  Example for REGEX `m*`:
+  
+  ![Zero or more](images/m_star.png)
+  
 ### Interface Processes
   
 There are two process used for the 
@@ -327,31 +365,15 @@ The no. of matches, M(n), is calculated by a
 dot product of two vectors sliced from Pascal's Triangle 
 (see the tech note \[[pdf](MultipleMatchRegex.pdf)\] for a proof sketch).
 
+Here are specific examples for `n=3` and `n=4`.
+
 ```
-a?^n  binary counting:  direction /
-a*^n  sum of digits:    direction -
-
-vectors shown for n=3 and n=4
-
 M(3) =   [1,3,3,1] * [1,3,6,10]     =   1+9+18+10   =  38
 
 M(4) = [1,4,6,4,1] * [1,4,10,20,35] = 1+16+60+80+35 = 192
-
-+----------------------------------------+
-|(M)n|  count of matches in a?^n or a*^n |
-|    | 0  1  2  3  4   5   6   7   8   9 |                            
-+----+-----------------------------------+
-|  1 | 1  1  1  1  1   1   1   1   1   1 |
-|    |         / /                       |
-|  2 | 1  2  3  4  5   6   7   8   9  10 |
-|n   |      / /                          |
-|  3 | 1--3--6-10 15  21  28  36  45  55 |
-|    |   / /                             |
-|  4 | 1--4-10-20-35  56  84 120 165 220 |
-|    |   /                               |
-|    | 1  5 15 35 70 126 210 330 495 715 |
- ...                 ...
 ```
+  
+  ![Zero or more](images/pascals-triangle-3-4-small.png)
 
 Here is the number of traversals _M(n)_ for each value of _n,_
 and the elapsed time in seconds (s) for _first_ and _all_ matches
