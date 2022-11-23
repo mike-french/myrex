@@ -263,22 +263,64 @@ defmodule Myrex.MyrexTest do
       Myrex.teardown(re_nfa)
     end
 
-    test "overlapping search test #{mode}" do
+    test "capture search test #{mode}" do
       def_opts = [capture: :all, return: :index, graph_name: :re]
 
-      re = "ana"
+      re = "a(bc)"
       IO.inspect(unquote(mode), label: "MODE")
       re_nfa = build(re, unquote(mode))
 
       opts = def_opts ++ [multiple: :first]
-      exec(:search, re_nfa, "z", :no_match, opts)
-      exec(:search, re_nfa, "ana", {:search, {0, 3}}, opts)
-      exec(:search, re_nfa, "banana", [{:search, {1, 3}}, {:search, {3, 3}}], opts)
+      exec(:search, re_nfa, "XYZ", :no_match, opts)
+      exec(:search, re_nfa, "abc", {:search, {0, 3}, %{1 => {1, 2}}}, opts)
+
+      exec(
+        :search,
+        re_nfa,
+        "VWabcXYZabcPQR",
+        [
+          {:search, {2, 3}, %{1 => {3, 2}}},
+          {:search, {8, 3}, %{1 => {9, 2}}}
+        ],
+        opts
+      )
+
+      exec(
+        :search,
+        re_nfa,
+        "VaWabcXaYbZabcPaQbR",
+        [
+          {:search, {3, 3}, %{1 => {4, 2}}},
+          {:search, {11, 3}, %{1 => {12, 2}}}
+        ],
+        opts
+      )
 
       opts = def_opts ++ [multiple: :all]
-      exec(:search, re_nfa, "z", :no_match, opts)
-      exec(:search, re_nfa, "ana", {:searches, [{0, 3}]}, opts)
-      exec(:search, re_nfa, "banana", {:searches, [{1, 3}, {3, 3}]}, opts)
+      exec(:search, re_nfa, "XYZ", :no_match, opts)
+
+      exec(
+        :search,
+        re_nfa,
+        "abc",
+        {:searches,
+         [
+           {{0, 3}, %{1 => {1, 2}}}
+         ]},
+        opts
+      )
+
+      exec(
+        :search,
+        re_nfa,
+        "VWabcXYZabcPQR",
+        {:searches,
+         [
+           {{2, 3}, %{1 => {3, 2}}},
+           {{8, 3}, %{1 => {9, 2}}}
+         ]},
+        opts
+      )
 
       Myrex.teardown(re_nfa)
     end
@@ -405,10 +447,14 @@ defmodule Myrex.MyrexTest do
   defp add_def_cap(str, {:match, caps}), do: {:match, add0(caps, str)}
   defp add_def_cap(str, {:matches, capss}), do: {:matches, Enum.map(capss, &add0(&1, str))}
   defp add_def_cap(str, {:search, index}) when is_tuple(index), do: {:search, index, add0(str)}
-  defp add_def_cap(str, {:search, {index, caps}}), do: {:search, index, add0(caps, str)}
+  defp add_def_cap(str, {:search, index, caps}), do: {:search, index, add0(caps, str)}
 
   defp add_def_cap(str, {:searches, ixs}) when is_list(ixs) do
-    {:searches, Enum.map(ixs, fn ix -> {ix, add0(str)} end)}
+    {:searches,
+     Enum.map(ixs, fn
+       {ix, caps} when is_tuple(ix) -> {ix, add0(caps, str)}
+       ix when is_tuple(ix) -> {ix, add0(str)}
+     end)}
   end
 
   defp add0(caps \\ %{}, str), do: Map.put(caps, 0, str)
