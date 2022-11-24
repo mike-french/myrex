@@ -106,6 +106,10 @@ Simple public interface in `Myrex` module:
 * Batch - `compile` and `teardown`
 * Execution - `match` and `search`
 
+Utility to generate diagrams of NFA process networks
+in [GraphViz](https://www.graphviz.org) DOT format
+and convert them to PNG images.
+
 ### Captures
 
 A _group_ in the REGEX is delimited by brackets: `(...)`. 
@@ -364,7 +368,7 @@ matching a string of `a^n`
 (a highly ambiguous exaggeration from the example in
 \[[Cox](https://swtch.com/~rsc/regexp/regexp1.html)\]).
 
-The no. of matches, M(n), is calculated by a 
+The no. of matches, _S(n),_ is calculated by a 
 dot product of two vectors sliced from Pascal's Triangle 
 (see the tech note \[[pdf](MultipleMatchRegex.pdf)\] for a proof sketch).
 
@@ -428,6 +432,17 @@ from the existing `Success` node, and redirects the results
 as new traversals of the augmented NFA network. 
 The search `Executor` tears down the transient prefix subgraph
 at the end of execution, but the main NFA is not changed.
+
+### Graph Output
+
+The NFA can be dumped to [GraphViz](https://www.graphviz.org) 
+DOT format \[[pdf](https://www.graphviz.org/pdf/dotguide.pdf)\], 
+and optionally generate PNG images if you have GraphViz installed.
+
+The test suite will write graphs for all compiled REGEXes.
+DOT and PNG files are written to the `dot` subdirectory by default.
+
+The images of NFAs in this README were auto-generated from tests. 
 
 ## Usage
 
