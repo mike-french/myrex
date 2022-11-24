@@ -140,11 +140,11 @@ defmodule Myrex do
     # define the difference between compile-time and run-time options?
 
     receive do
-      :end_matches ->
+      :match ->
         {:matches, matches}
 
-      :end_searches ->
-        {:searches, Enum.sort(Enum.uniq(matches))}
+      :search ->
+        {:searches, Enum.sort(matches)}
 
       :no_match ->
         {:no_match, %{0 => str}}
@@ -219,25 +219,30 @@ defmodule Myrex do
 
   defp match2search({:no_match, _caps} = result), do: result
 
-  defp match2search({:match, caps}) do
+  defp match2search({:match, caps}) when is_map(caps) do
     {str, caps} = Map.pop!(caps, 0)
+    # fake search capture is index 1
+    # remove it from captures and use for search result
     {idx, caps} = Map.pop!(caps, 1)
 
     search_caps =
       Enum.reduce(caps, %{0 => str}, fn {k, v}, c when is_integer(k) and k > 0 ->
+        # move all captures down by 1 to fill space left by fake search
         Map.put(c, k - 1, v)
       end)
 
     {:search, idx, search_caps}
   end
 
-  defp match2search({:matches, capslist}) do
+  defp match2search({:matches, capss}) when is_list(capss) do
     searches =
-      Enum.map(capslist, fn caps ->
+      capss
+      |> Enum.map(fn caps ->
         {:search, idx, search_caps} = match2search({:match, caps})
         {idx, search_caps}
       end)
+      |> Enum.sort()
 
-    {:searches, Enum.sort(searches)}
+    {:searches, searches}
   end
 end

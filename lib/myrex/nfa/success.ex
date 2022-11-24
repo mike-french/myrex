@@ -29,19 +29,17 @@ defmodule Myrex.NFA.Success do
         Executor.notify_result(executor, {:match, captures})
 
       {"", len, [{:search, begin}], captures, executor} ->
-        IO.inspect("search complete")
         # finish state of the NFA and end of input, so a complete search match
         # open group contains a special search capture token
         captures = default_captures(captures, ngroup)
         # send a search result including the index of the search capture
         Executor.notify_result(executor, {:search, {begin, len - begin}, captures})
 
-      {str, pos, [{:search, begin}], _caps, executor} = state when byte_size(str) > 0 ->
+      {str, pos, [{:search, begin}], captures, executor} when byte_size(str) > 0 ->
         # finish state of the NFA, but not end of input
         # so NFA matches a prefix of the original input
         # for a search, this is a successful partial match
-        IO.inspect(state, label: "search partial")
-        Executor.notify_result(executor, {:partial_search, {begin, pos - begin}, state})
+        Executor.notify_result(executor, {:search, {begin, pos - begin}, captures})
 
       {str, _pos, _open_groups, _caps, executor} when byte_size(str) > 0 ->
         # finish state of the NFA, but not end of input

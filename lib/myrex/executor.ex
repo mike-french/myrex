@@ -25,7 +25,7 @@ defmodule Myrex.Executor do
   @spec init_batch(pid(), String.t(), T.options()) :: pid()
   def init_batch(nfa, str, opts) when is_pid(nfa) and is_binary(str) and is_list(opts) do
     # don't pass nfa for teardown
-    executor = spawn_link(__MODULE__, :exec, [nil, :mode_match, opts, self()])
+    executor = spawn_link(__MODULE__, :exec, [nil, opts, self()])
     Proc.traverse(nfa, {str, 0, [], %{}, executor})
     executor
   end
@@ -40,7 +40,7 @@ defmodule Myrex.Executor do
     # no graph output for oneshot execution
     nfa = Start.init(fn -> Compiler.compile(re, opts) end, nil)
     # pass the nfa for prompt teardown
-    executor = spawn_link(__MODULE__, :exec, [nfa, :mode_match, opts, self()])
+    executor = spawn_link(__MODULE__, :exec, [nfa, opts, self()])
     Proc.traverse(nfa, {str, 0, [], %{}, executor})
     executor
   end
@@ -65,17 +65,17 @@ defmodule Myrex.Executor do
     dotall? = Keyword.get(opts, :dotall, @default_dotall)
     prefixed_nfa = Start.init(fn -> nfa |> NFA.search(dotall?) |> Proc.input() end, nil)
     # pass prefix nfa subgraph for teardown, but not the original NFA
-    executor = spawn_link(__MODULE__, :exec, [prefixed_nfa, :mode_search, opts, self()])
+    executor = spawn_link(__MODULE__, :exec, [prefixed_nfa, opts, self()])
     Proc.traverse(prefixed_nfa, {str, 0, [], %{}, executor})
     executor
   end
 
-  # entry point for running the executor, which looks up configuration options
-  @spec exec(nil | pid(), T.mode(), T.options(), pid()) :: no_return()
-  def exec(nfa, mode, opts, client) do
+  # entry point for running the executor to look up configuration options
+  @spec exec(nil | pid(), T.options(), pid()) :: no_return()
+  def exec(nfa, opts, client) do
     timeout = Keyword.get(opts, :timeout, @default_timeout)
     multiple = Keyword.get(opts, :multiple, @default_multiple)
-    execute(1, client, nfa, mode, timeout, multiple, :no_match)
+    execute(1, client, nfa, timeout, multiple, :no_match)
   end
 
   @doc """
@@ -104,37 +104,36 @@ defmodule Myrex.Executor do
   and the `Executor` exits normally.
 
   After a result is returned, the `Executor` exits normally.
-  If a one-shot NFA process network was built by the `Executor`,
-  then all the linked NFA processes will be killed.
+  If a one-shot NFA or search prefix subgraph NFA was built by the `Executor`,
+  then all those linked NFA processes will be killed.
   """
   @spec execute(
           T.count(),
           pid(),
           nil | pid(),
-          T.mode(),
           timeout(),
           T.multiple_flag(),
-          :no_match | :match | :search | :end_matches | :end_searches
+          :no_match | :match | :search
         ) ::
           no_return()
 
-  def execute(0, client, nfa, _mode, _timeout, _multi, result_type) do
+  def execute(0, client, nfa, _timeout, _multi, result_type) do
     notify_result(client, result_type)
     Start.teardown(nfa)
     exit(:normal)
   end
 
-  def execute(n, client, nfa, mode, timeout, multi, result_type) when is_count1(n) do
+  def execute(n, client, nfa, timeout, multi, result_type) when is_count1(n) do
     receive do
       delta when is_count(delta) ->
-        # split fan-out increases number of traversals 
-        execute(n + delta, client, nfa, mode, timeout, multi, result_type)
+        # split fan-out increases number of traversals
+        execute(n + delta, client, nfa, timeout, multi, result_type)
 
       :no_match ->
         # failure reduces number of traversals
-        execute(n - 1, client, nfa, mode, timeout, multi, result_type)
+        execute(n - 1, client, nfa, timeout, multi, result_type)
 
-      {:match, _} = success when mode == :mode_match ->
+      success when is_tuple(success) ->
         # match success at end of input
         notify_result(client, success)
 
@@ -146,40 +145,8 @@ defmodule Myrex.Executor do
         end
 
         # success reduces number of traversals
-        # and forces current result to be a match
-        execute(n - 1, client, nfa, mode, timeout, multi, :end_matches)
-
-      {:search, _index, _caps} = success when mode == :mode_search ->
-        # search success at end of input
-        notify_result(client, success)
-
-        # for a batch search, only the prefix wildcard subgraph is linked
-        # so the main compiled nfa will survive the exit
-        if multi == :one do
-          Start.teardown(nfa)
-          exit(:normal)
-        end
-
-        # success reduces number of traversals
-        # and forces current result to be a search
-        execute(n - 1, client, nfa, mode, timeout, multi, :end_searches)
-
-      {:partial_search, index, {str, pos, _, captures, _exec}} when mode == :mode_search ->
-        # search success but not at end of input
-        notify_result(client, {:search, index, captures})
-
-        # for a batch search, only the prefix wildcard subgraph is linked
-        # so the main compiled nfa will survive the exit
-        if multi == :one do
-          Start.teardown(nfa)
-          exit(:normal)
-        end
-
-        # in search all mode, partial match injects a new traversal
-        Proc.traverse(nfa, {str, pos, [], %{}, self()})
-
-        # the total number of traversals stays the same
-        execute(n, client, nfa, mode, timeout, multi, :end_searches)
+        # and forces current result type to :match or :search
+        execute(n - 1, client, nfa, timeout, multi, elem(success, 0))
 
       msg ->
         raise RuntimeError, message: "Unhandled message #{inspect(msg)}"
@@ -192,9 +159,8 @@ defmodule Myrex.Executor do
   @spec notify_result(
           pid(),
           :no_match
-          | :end_matches
-          | :end_searches
-          | {:partial_search, T.capture_index(), T.state()}
+          | :match
+          | :search
           | T.match_result()
           | T.search_result()
         ) ::

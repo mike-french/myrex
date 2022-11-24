@@ -11,11 +11,11 @@
 
 * Named groups (?<name>...) or (?'name'...)
 
-* Process behaviour? init/postfun, attach, match
+* Process define behaviour? init/postfun, attach, match
 
 * Process runtime monitoring 
   
-* Clarify behaviour of top-level RE as string
+* Clarify behaviour of top-level RE as simple char sequence
 
 * Clarify build-time and run-time options
   especially group captures, names, etc.
@@ -32,8 +32,5 @@
 * Add generator function to the NFAs
   Use constant factor option for decay of 'more'
   
-* Add captures to searches
-
 * Interface and test for parallel streaming of input strings
 
-* Fix but with repeated multi-search result, see comment in myrex.ex
