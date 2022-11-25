@@ -11,7 +11,6 @@ defmodule Myrex.MyrexTest do
   # the later argument is the expected result
   # but these may be the same in the case of ':match'
 
-  # :oneshot,
   for mode <- [:oneshot, :batch] do
     test "char test #{mode}" do
       re = "ab"
@@ -207,7 +206,7 @@ defmodule Myrex.MyrexTest do
       Myrex.teardown(re_nfa)
     end
 
-    test "group named capture test #{mode}" do
+    test "group capture test #{mode}" do
       re = "(ab)(cd)"
       re_nfa = build(re, unquote(mode))
 
@@ -218,6 +217,27 @@ defmodule Myrex.MyrexTest do
       opts = [return: :index, graph_name: :re]
       exec(:match, re_nfa, "abcd", {:match, %{1 => {0, 2}}}, [{:capture, [1]} | opts])
       exec(:match, re_nfa, "abcd", {:match, %{2 => {2, 2}}}, [{:capture, [2]} | opts])
+
+      Myrex.teardown(re_nfa)
+    end
+
+    test "group named duplicate capture test #{mode}" do
+      re = "(?<foo>ab)|(?<foo>cd)"
+      re_nfa = build(re, unquote(mode))
+
+      opts = [return: :binary, graph_name: :re]
+
+      exec(:match, re_nfa, "ab", {:match, %{1 => "ab", "foo" => "ab"}}, [{:capture, :all} | opts])
+      exec(:match, re_nfa, "ab", {:match, %{"foo" => "ab"}}, [{:capture, ["foo"]} | opts])
+
+      exec(:match, re_nfa, "cd", {:match, %{"foo" => "cd", 2 => "cd"}}, [
+        {:capture, ["foo", 2]} | opts
+      ])
+
+      opts = [return: :index, graph_name: :re]
+
+      exec(:match, re_nfa, "ab", {:match, %{"foo" => {0, 2}}}, [{:capture, ["foo"]} | opts])
+      exec(:match, re_nfa, "cd", {:match, %{2 => {0, 2}}}, [{:capture, [2]} | opts])
 
       Myrex.teardown(re_nfa)
     end

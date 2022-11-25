@@ -25,10 +25,14 @@ defmodule Myrex.ASTTest do
   end
 
   test "group" do
-    do_ast("(a)", {:group, 1, [?a]})
-    do_ast("(abc)", {:group, 1, [?a, ?b, ?c]})
+    do_ast("(a)", {:group, 1, 'a'})
+    do_ast("(abc)", {:group, 1, 'abc'})
     do_ast("(ab*c)", {:group, 1, [?a, {:zero_more, ?b}, ?c]})
-    do_ast("(abc)*", {:zero_more, {:group, 1, [?a, ?b, ?c]}})
+    do_ast("(abc)*", {:zero_more, {:group, 1, 'abc'}})
+
+    do_ast("(?:abc)", {:group, :nocap, 'abc'})
+    do_ast("(?<foo>abc)", {:group, {1, "foo"}, 'abc'})
+    do_ast("(?<bar_99>abc)", {:group, {1, "bar_99"}, 'abc'})
   end
 
   test "repeat" do

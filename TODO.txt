@@ -9,8 +9,6 @@
 
 * More Elixir Regex (PCRE) options
 
-* Named groups (?<name>...) or (?'name'...)
-
 * Process define behaviour? init/postfun, attach, match
 
 * Process runtime monitoring 

@@ -216,7 +216,11 @@ defmodule Myrex.ParserTest do
       )
 
       do_par("((a))", {:group, 1, [{:group, 2, [?a]}]})
+
       do_par("(?:(ab))", {:group, :nocap, [{:group, 1, [?a, ?b]}]})
+
+      do_par("(?<foo>ab)", {:group, {1, "foo"}, [?a, ?b]})
+      do_par("(?<bar_99>ab)", {:group, {1, "bar_99"}, [?a, ?b]})
 
       bad_par(")")
       bad_par("(")

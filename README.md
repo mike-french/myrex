@@ -31,8 +31,12 @@ All possible traversals are explored in parallel.
 Processes implementing rules that do not match the input 
 cause the traversal to terminate. A traversal that reaches the 
 final process returns a successful match of the input.
-A successful match result contains substrings of the input 
-captured for groups in the REGEX.
+
+A successful match result contains references or substrings of the input 
+captured for groups in the REGEX. 
+Groups can be explicitly labelled with string names. 
+Unlabelled groups are implicitly labelled with 1-based integers
+based on the position of the opening `(` in the REGEX.
 
 The runtime execution of the process network depends on
 the Erlang BEAM scheduler being _fair,_
@@ -42,14 +46,6 @@ The scheduler will ensure that a single exponentially long
 failed match does not starve other traversals.
 However, this also means it cannot guarantee the efficient 
 dedicated execution of an exponentially long successful match.
-
-Each message contains the traversal state for the match:
-* A copy or reference to the input string.
-* The current position in the string.
-* The current state for groups:
-  * Previous capture results.
-  * Stack of currently open groups.
-* A client process return address for the result.
 
 
 ## Features
@@ -66,6 +62,7 @@ Standard syntax:
 * `{` _n_ `}` exactly _n_ repeats
 * `(` begin group
 * `(?:` begin group without capture
+* `(?<name>` begin named group capture
 * `)` end  group
 * `[`  begin character class
 * `[^`  begin negated character class
@@ -144,6 +141,37 @@ Combinators recursively build larger networks
 from smaller operator subgraphs, 
 grounded in atomic character matchers
 \[[Cox](https://swtch.com/~rsc/regexp/regexp1.html)\].
+
+### Traversals
+
+A traversal is a sequence of 
+messages that propagates through the network.
+
+An input string is injected as a message into the `Start` node 
+of the process network.  
+Each traversal continues until it fails to match,
+or reaches the final `Success` node.
+
+There are multiple traversals propagating 
+concurrently within the network.
+An ambiguous regular expression may match an input string in multiple ways,
+which means that mutiple traversals may reach the `Success` node.
+
+The progress of each traversal depends on the 
+Erlang BEAM scheduler, and the behaviour appears 
+to be non-deterministic from an outside point of view.
+
+The active traversals can be from different input strings,
+as all matching state is maintained in the messages, 
+not in the nodes, and there is no globally accessible state.
+
+Each message contains the traversal state for the match:
+* A copy or reference to the input string.
+* The current position in the string.
+* The current state for groups:
+  * Previous capture results.
+  * Stack of currently open groups.
+* A client process return address for the result.
 
 ### Combinators
 
@@ -483,7 +511,9 @@ The currently supported keys and values are:
 `:capture` the values to return in match results:
 * `:all` (default) - all captures are returned, 
   except those explicitly excluded using `(?:...)` anonymous group syntax.
-* _names_ - a list of names (1-based integers) to return a capture value.
+* `:named` - only groups explicitly labelled with a capture label.
+* _names_ - a list of names to return a capture value, where _names_ 
+  can be implicit 1-based integers or explicit label strings for named groups.
 * `:none` - no captures are returned, except the key `0` for the whole string.
 
 `:return` the type for group capture results:

@@ -160,14 +160,14 @@ defmodule Myrex.NFA do
   ```
   """
 
-  @spec group(T.procs(), :nocap | T.capture_name()) :: T.proc()
+  @spec group(T.procs(), :nocap | String.t() | T.capture_name()) :: T.proc()
 
   def group(procs, :nocap) when is_list(procs) do
     # no-capture group is just an anonymous sequence
     sequence(procs)
   end
 
-  def group(procs, name) when is_list(procs) and is_name(name) do
+  def group(procs, name) when is_list(procs) and (is_name(name) or is_binary(name)) do
     begin = BeginGroup.init(name)
     endgrp = EndGroup.init()
     sequence([begin | procs] ++ [endgrp])

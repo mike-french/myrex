@@ -3,6 +3,7 @@ defmodule Myrex do
   A regular expression matcher.
   """
 
+  import Myrex.Types
   alias Myrex.Types, as: T
 
   alias Myrex.Compiler
@@ -186,18 +187,25 @@ defmodule Myrex do
       case {capopt, return} do
         {:none, _} -> %{}
         {:all, :index} -> caps
-        {:all, :binary} -> cap2str(Map.keys(caps), str, caps)
-        {names, :index} when is_list(names) -> Map.take(caps, names)
-        {names, :binary} when is_list(names) -> cap2str(names, str, Map.take(caps, names))
+        {:all, :binary} -> caps |> cap2str(str)
+        {:named, :index} -> caps |> Map.reject(&is_count1(&1))
+        {:named, :binary} -> caps |> Map.reject(&is_count1(&1)) |> cap2str(str)
+        {names, :index} when is_list(names) -> caps |> Map.take(names)
+        {names, :binary} when is_list(names) -> caps |> Map.take(names) |> cap2str(str, names)
       end
 
     Map.put(caps, 0, str)
   end
 
-  # get group substrings from capture indexes
-  @spec cap2str([T.capture_name()], String.t(), T.captures()) :: T.captures()
+  # get group substrings for all capture indexes
+  @spec cap2str(T.captures(), String.t()) :: T.captures()
+  defp cap2str(caps, str), do: cap2str(caps, str, Map.keys(caps))
 
-  defp cap2str([name | names], str, caps) do
+  # get input substrings from capture indexes
+  # for a specific set of keys (capture names)
+  @spec cap2str(T.captures(), String.t(), [T.capture_name()]) :: T.captures()
+
+  defp cap2str(caps, str, [name | names]) do
     substr =
       case Map.get(caps, name, :no_capture) do
         :no_capture ->
@@ -210,10 +218,10 @@ defmodule Myrex do
           Enum.map(indexes, fn {pos, len} -> String.slice(str, pos, len) end)
       end
 
-    cap2str(names, str, %{caps | name => substr})
+    caps |> Map.put(name, substr) |> cap2str(str, names)
   end
 
-  defp cap2str([], _, caps), do: caps
+  defp cap2str(caps, _, []), do: caps
 
   # convert a wrapped match result to a search result
 

@@ -101,11 +101,20 @@ defmodule Myrex.LexerTest do
     bad_lex("\\u123+")
   end
 
-  test "lex_group_test" do
+  test "lex group test" do
     equal("()", [{:begin_group, 1}, :end_group])
     equal("(ab)", [{:begin_group, 1}, ?a, ?b, :end_group])
 
     equal("(?:ab)", [{:begin_group, :nocap}, ?a, ?b, :end_group])
+  end
+
+  test "lex named group test" do
+    equal("(?<foo>ab)", [{:begin_group, {1, "foo"}}, ?a, ?b, :end_group])
+    equal("(?<bar_99>ab)", [{:begin_group, {1, "bar_99"}}, ?a, ?b, :end_group])
+
+    bad_lex("(?<")
+    bad_lex("(?<>ab)")
+    bad_lex("(?<~!@#$%^>ab)")
   end
 
   test "lex_nest_test" do

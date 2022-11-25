@@ -19,11 +19,18 @@ defmodule Myrex.NFA.EndGroup do
   @spec match(pid()) :: no_return()
   defp match(next) do
     receive do
-      {str, pos, [{name, begin} | groups], captures, executor} ->
+      {str, pos, [{tags, begin} = grp | groups], captures, executor} ->
         # pop the open group off the stack, update the capture results
         # capture is a start-length pair of positions in the input
         # includes zero length captures "" for `?` and `*` operators
-        new_captures = Map.put(captures, name, {begin, pos - begin})
+        index = {begin, pos - begin}
+
+        new_captures =
+          case tags do
+            {g, name} -> captures |> Map.put(g, index) |> Map.put(name, index)
+            g when is_integer(g) or is_binary(g) -> captures |> Map.put(g, index)
+          end
+
         Proc.traverse(next, {str, pos, groups, new_captures, executor})
 
       msg ->

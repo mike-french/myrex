@@ -25,7 +25,8 @@ defmodule Myrex.NFA.Success do
     receive do
       {"", _len, [], captures, executor} ->
         # finish state of the NFA and end of input, so a complete match
-        captures = default_captures(captures, ngroup)
+        # add default ':no_capture` values?
+        # captures = default_captures(captures, ngroup)
         Executor.notify_result(executor, {:match, captures})
 
       {"", len, [{:search, begin}], captures, executor} ->

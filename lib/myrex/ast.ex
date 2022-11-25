@@ -38,7 +38,10 @@ defmodule Myrex.AST do
   defp node2re(:any_char), do: ?.
   defp node2re({:sequence, nodes}), do: [node2re(nodes)]
   defp node2re({:group, :nocap, nodes}), do: [?(, ??, ?:, node2re(nodes), ?)]
-  defp node2re({:group, _, nodes}), do: [?(, node2re(nodes), ?)]
+  defp node2re({:group, i, nodes}) when is_integer(i), do: [?(, node2re(nodes), ?)]
+
+  defp node2re({:group, {_g, name}, nodes}) when is_binary(name),
+    do: [?(, ??, ?<, name, ?>, node2re(nodes), ?)]
 
   defp node2re({:alternate, [h | ns]}),
     do: [node2re(h) | Enum.map(ns, fn n -> [?|, node2re(n)] end)]
@@ -99,9 +102,15 @@ defmodule Myrex.AST do
     ]
   end
 
-  defp ast2str({:group, name, nodes}, d) do
+  defp ast2str({:group, g, nodes}, d) do
+    str =
+      case g do
+        g when is_integer(g) -> Integer.to_string(g)
+        {g, name} -> "#{g},'#{name}'"
+      end
+
     [
-      [indent(d), "group ", Integer.to_string(name), " {\n"],
+      [indent(d), "group ", str, " {\n"],
       ast2str(nodes, d + 1),
       [indent(d), "}\n"]
     ]

@@ -70,18 +70,50 @@ defmodule Myrex.Compiler do
     |> NFA.sequence()
   end
 
-  defp ast2nfa({:group, name, nodes}, opts) do
-    name =
+  defp ast2nfa({:group, :nocap, nodes}, opts) do
+    nodes
+    |> Enum.map(&ast2nfa(&1, opts))
+    |> NFA.sequence()
+  end
+
+  defp ast2nfa({:group, {g, name} = both, nodes}, opts) do
+    tags =
       case Keyword.get(opts, :capture, :all) do
-        :none -> :nocap
-        :all -> name
-        :named -> if not is_integer(name), do: name, else: :nocap
-        names when is_list(names) -> if name in names, do: name, else: :nocap
+        :none ->
+          :nocap
+
+        :all ->
+          both
+
+        :named ->
+          name
+
+        names when is_list(names) ->
+          case {g in names, name in names} do
+            {true, true} -> both
+            {true, false} -> g
+            {false, true} -> name
+            {false, false} -> :nocap
+          end
       end
 
     nodes
     |> Enum.map(&ast2nfa(&1, opts))
-    |> NFA.group(name)
+    |> NFA.group(tags)
+  end
+
+  defp ast2nfa({:group, g, nodes}, opts) when is_integer(g) do
+    g =
+      case Keyword.get(opts, :capture, :all) do
+        :none -> :nocap
+        :all -> g
+        :named -> :nocap
+        names when is_list(names) -> if g in names, do: g, else: :nocap
+      end
+
+    nodes
+    |> Enum.map(&ast2nfa(&1, opts))
+    |> NFA.group(g)
   end
 
   defp ast2nfa({:repeat, nrep, node}, opts) do

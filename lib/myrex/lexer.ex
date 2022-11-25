@@ -14,6 +14,7 @@ defmodule Myrex.Lexer do
   defguard is_alpha(c) when (c >= ?a and c <= ?z) or (c >= ?A and c <= ?Z)
   defguard is_digit(c) when c >= ?0 and c <= ?9
   defguard is_hex(c) when is_digit(c) or (c >= ?a and c <= ?f) or (c >= ?A and c <= ?F)
+  defguard is_named(c) when is_alpha(c) or is_digit(c) or c == ?_
 
   @doc """
   Convert a regular expression string to a list of tokens and characters.
@@ -48,6 +49,13 @@ defmodule Myrex.Lexer do
   defp re2tok([?| | t], toks, g), do: re2tok(t, [:alternate | toks], g)
 
   defp re2tok([?(, ??, ?: | t], toks, g), do: re2tok(t, [{:begin_group, :nocap} | toks], g)
+
+  defp re2tok([?(, ??, ?< | t], toks, g) do
+    {name, rest} = name(t, '')
+    # TODO - should have name and index g
+    re2tok(rest, [{:begin_group, {g, name}} | toks], g + 1)
+  end
+
   defp re2tok([?( | t], toks, g), do: re2tok(t, [{:begin_group, g} | toks], g + 1)
   defp re2tok([?) | t], toks, g), do: re2tok(t, [:end_group | toks], g)
 
@@ -114,6 +122,22 @@ defmodule Myrex.Lexer do
 
   defp repeat([], _), do: raise(ArgumentError, message: "Lexer error: missing end repeat '}'")
 
+  # Read the name of a capture
+  @spec name(charlist(), charlist()) :: {String.t(), charlist()}
+
+  defp name([?> | _], []),
+    do: raise(ArgumentError, message: "Lexer error: empty group name '<>'")
+
+  defp name([?> | t], cs), do: {to_string(Enum.reverse(cs)), t}
+
+  defp name([c | t], cs) when is_named(c), do: name(t, [c | cs])
+
+  defp name([c | _], _cs),
+    do: raise(ArgumentError, message: "Lexer error: illegal group name character '#{c}'")
+
+  defp name([], _cs),
+    do: raise(ArgumentError, message: "Lexer error: group name must be closed with '>'")
+
   @doc """
   Convert a list of lexical tokens
   back to a regular expression string.
@@ -132,8 +156,10 @@ defmodule Myrex.Lexer do
 
   defp tok2re([a | toks], re) when is_atom(a), do: tok2re(toks, [chr(a) | re])
 
-  defp tok2re([{:begin_group, :nocap} | toks], re),
-    do: tok2re(toks, [?(, ??, ?: | re])
+  defp tok2re([{:begin_group, :nocap} | toks], re), do: tok2re(toks, [?(, ??, ?: | re])
+
+  defp tok2re([{:begin_group, {_g, name}} | toks], re),
+    do: tok2re(toks, [?(, ??, ?<, name, ?> | re])
 
   defp tok2re([{:begin_group, _} | toks], re), do: tok2re(toks, [?( | re])
 
@@ -188,11 +214,14 @@ defmodule Myrex.Lexer do
     # TODO - escape unicode chars \uHHHH
     do: tok2str(toks, [?\s, ?', c, ?' | strs])
 
-  defp tok2str([{:begin_group, g} | toks], strs) when is_count(g),
-    do: tok2str(toks, [?\s, ?}, Integer.to_charlist(g), "{begin_group," | strs])
-
   defp tok2str([{:begin_group, :nocap} | toks], strs),
     do: tok2str(toks, ["{begin_group, nocap} " | strs])
+
+  defp tok2str([{:begin_group, {_g, name}} | toks], strs) when is_binary(name),
+    do: tok2str(toks, [?\s, ?}, ?', name, "{begin_group,'" | strs])
+
+  defp tok2str([{:begin_group, g} | toks], strs) when is_count(g),
+    do: tok2str(toks, [?\s, ?}, Integer.to_charlist(g), "{begin_group," | strs])
 
   defp tok2str([{:alternate, nalt} | toks], strs) when is_integer(nalt),
     do: tok2str(toks, [?\s, ?}, Integer.to_charlist(nalt), "{alternate," | strs])
@@ -202,5 +231,6 @@ defmodule Myrex.Lexer do
 
   defp tok2str([], strs), do: strs |> Enum.reverse() |> List.flatten()
 
-  defp tok2str([h | _], _), do: raise(ArgumentError, message: "Unexpected lexical element #{h}")
+  defp tok2str([h | _], _),
+    do: raise(ArgumentError, message: "Unexpected lexical element #{inspect(h)}")
 end

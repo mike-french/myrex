@@ -65,12 +65,15 @@ defmodule Myrex.Types do
   @typedoc """
   The name for a capture group. 
 
-  Groups are assigned a 1-based index,
+  Groups are automatically assigned a 1-based index,
   and index 0 is reserved for the whole input string.
-  In the future, groups will support string named captures.
+  Groups explicitly named with a string are also allowed. 
   """
-  @type capture_name() :: non_neg_integer() | :search
-  defguard is_name(n) when (is_integer(n) and n >= 0) or n == :search
+  @type capture_name() :: count() | {count1(), String.t()} | :search
+  defguard is_name(n)
+           when (is_integer(n) and n >= 0) or
+                  (is_tuple(n) and tuple_size(n) == 2) or
+                  n == :search
 
   @typedoc "A reference into the input string for a capture."
   @type capture_index() :: {position(), count1()}
@@ -152,7 +155,7 @@ defmodule Myrex.Types do
           | :end_class
           | :range_to
           # compound lexical tokens
-          | {:begin_group, :nocap | count1()}
+          | {:begin_group, :nocap | count1() | String.t()}
           | {:repeat, count2()}
           # postfix parser token
           # to support the parser stack
@@ -229,9 +232,6 @@ defmodule Myrex.Types do
   # --------------
   # Internal types
   # --------------
-
-  @typedoc "The mode of applying a regular expression."
-  @type mode() :: :mode_match | :mode_search
 
   @typedoc "A function that matches a single character."
   @type acceptor() :: (char() -> boolean())
