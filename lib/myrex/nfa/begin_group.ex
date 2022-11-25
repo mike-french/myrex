@@ -22,9 +22,11 @@ defmodule Myrex.NFA.BeginGroup do
   @spec match(T.capture_name(), pid()) :: no_return()
   defp match(name, next) do
     receive do
-      {str, pos, groups, captures, executor} ->
-        # push a begin group tuple onto the group stack in the traversal state
-        Proc.traverse(next, {str, pos, [{name, pos} | groups], captures, executor})
+      {str, pos, groups, caps, executor} ->
+        # add default capture entries
+        new_caps = Enum.reduce(T.names(name), caps, fn k, m -> Map.put(m, k, :no_capture) end)
+        # push a begin group tuple onto the group stack
+        Proc.traverse(next, {str, pos, [{name, pos} | groups], new_caps, executor})
 
       msg ->
         raise RuntimeError, message: "Unhandled message #{inspect(msg)}"

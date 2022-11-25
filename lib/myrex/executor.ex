@@ -13,21 +13,15 @@ defmodule Myrex.Executor do
   alias Myrex.NFA.Proc
   alias Myrex.NFA.Start
 
-  @default_timeout 1_000
-  @default_multiple :one
-  @default_dotall false
-
   @doc """
   Initialize a batch matching operation. 
   The client to receive results is the calling process (self).
   The NFA is owned by a separate builder process.
   """
   @spec init_batch(pid(), String.t(), T.options()) :: pid()
-  def init_batch(nfa, str, opts) when is_pid(nfa) and is_binary(str) and is_list(opts) do
-    # don't pass nfa for teardown
-    executor = spawn_link(__MODULE__, :exec, [nil, opts, self()])
-    Proc.traverse(nfa, {str, 0, [], %{}, executor})
-    executor
+  def init_batch(start, str, opts) when is_pid(start) and is_binary(str) and is_list(opts) do
+    # don't pass start nfa for teardown
+    spawn_link(__MODULE__, :exec, [nil, start, str, opts, self()])
   end
 
   @doc """
@@ -38,11 +32,9 @@ defmodule Myrex.Executor do
   @spec init_oneshot(T.regex(), String.t(), T.options()) :: pid()
   def init_oneshot(re, str, opts) when is_binary(re) and is_binary(str) and is_list(opts) do
     # no graph output for oneshot execution
-    nfa = Start.init(fn -> Compiler.compile(re, opts) end, nil)
-    # pass the nfa for prompt teardown
-    executor = spawn_link(__MODULE__, :exec, [nfa, opts, self()])
-    Proc.traverse(nfa, {str, 0, [], %{}, executor})
-    executor
+    start = Start.init(fn -> Compiler.compile(re, opts) end, nil)
+    # pass the start nfa for prompt teardown
+    spawn_link(__MODULE__, :exec, [start, start, str, opts, self()])
   end
 
   @doc """
@@ -62,20 +54,21 @@ defmodule Myrex.Executor do
   def init_search(nfa, str, opts) when is_pid(nfa) and is_binary(str) and is_list(opts) do
     # build a prefix subgraph for '.*' linked to a new Start process
     # the executor will teardown the prefix Start process at the end of the search
-    dotall? = Keyword.get(opts, :dotall, @default_dotall)
-    prefixed_nfa = Start.init(fn -> nfa |> NFA.search(dotall?) |> Proc.input() end, nil)
-    # pass prefix nfa subgraph for teardown, but not the original NFA
-    executor = spawn_link(__MODULE__, :exec, [prefixed_nfa, opts, self()])
-    Proc.traverse(prefixed_nfa, {str, 0, [], %{}, executor})
-    executor
+    dotall? = Keyword.get(opts, :dotall, T.default(:dotall))
+    prefix = Start.init(fn -> nfa |> NFA.search(dotall?) |> Proc.input() end, nil)
+    # pass prefix nfa subgraph for teardown, not the original NFA
+    spawn_link(__MODULE__, :exec, [prefix, prefix, str, opts, self()])
   end
 
   # entry point for running the executor to look up configuration options
-  @spec exec(nil | pid(), T.options(), pid()) :: no_return()
-  def exec(nfa, opts, client) do
-    timeout = Keyword.get(opts, :timeout, @default_timeout)
-    multiple = Keyword.get(opts, :multiple, @default_multiple)
-    execute(1, client, nfa, timeout, multiple, :no_match)
+  @spec exec(nil | pid(), pid(), String.t(), T.options(), pid()) :: no_return()
+  def exec(teardown, start, str, opts, client) do
+    timeout = Keyword.get(opts, :timeout, T.default(:timeout))
+    multiple = Keyword.get(opts, :multiple, T.default(:multiple))
+    offset = Keyword.get(opts, :offset, 0)
+    str = if offset > 0, do: String.slice(str, offset, String.length(str) - offset), else: str
+    Proc.traverse(start, {str, offset, [], %{}, self()})
+    execute(1, client, teardown, timeout, multiple, :no_match)
   end
 
   @doc """

@@ -17,10 +17,15 @@ defmodule Myrex.MyrexTest do
       re_nfa = build(re, unquote(mode))
 
       exec(:match, re_nfa, "ab", :match)
+      exec(:match, re_nfa, "ab", :match, offset: 0)
+      exec(:match, re_nfa, "XYab", :match, offset: 2)
 
       exec(:match, re_nfa, "", :no_match)
       exec(:match, re_nfa, "bb", :no_match)
       exec(:match, re_nfa, "abab", :no_match)
+
+      bad_exec(:match, re_nfa, "ab", :match, offset: -1)
+      bad_exec(:match, re_nfa, "ab", :match, offset: 99)
 
       Myrex.teardown(re_nfa)
     end
@@ -382,6 +387,8 @@ defmodule Myrex.MyrexTest do
     end
   end
 
+  # --------------------------------------------------------
+
   # total count of matches for (a?)^n (a*)^n against a^n
   # using the dot product of two vectors from Pascal's Triangle
   @spec mdot(pos_integer()) :: pos_integer()
@@ -478,4 +485,53 @@ defmodule Myrex.MyrexTest do
   end
 
   defp add0(caps \\ %{}, str), do: Map.put(caps, 0, str)
+
+  defp bad_exec(f, re_nfa, str, expect, opts) do
+    assert_raise ArgumentError, fn -> exec(f, re_nfa, str, expect, opts) end
+  end
+
+  # ------------------------
+  # Regex library utilities
+  # -----------------------
+
+  for return <- [:index, :binary] do
+    test "regex library comparisons #{return}" do
+      named_captures("(?<foo>ab)|(?<bar>cd)", "ab", unquote(return), ["bar", "foo"])
+    end
+  end
+
+  defp named_captures(re, str, return, expected_names) do
+    myopts = [capture: :named, return: return]
+    reopts = [capture: :all, return: return]
+    {:ok, regex} = Regex.compile(re, [])
+    IO.inspect(regex, label: "REGEX")
+    assert Enum.sort(expected_names) == Enum.sort(Regex.names(regex))
+
+    recaps = Regex.named_captures(regex, str, reopts)
+    IO.inspect(recaps, label: "REGEX re   caps")
+    recaps = named2myrex(recaps, str)
+    {:match, mycaps} = Myrex.match(re, str, myopts)
+    IO.inspect(recaps, label: "REGEX remy caps")
+    IO.inspect(mycaps, label: "REGEX my   caps")
+    assert mycaps == recaps
+
+    rerun = Regex.run(regex, str, reopts)
+    IO.inspect(rerun, label: "REGEX re  run")
+    keys = Map.keys(mycaps)
+    IO.inspect(keys, label: "REGEX keys")
+    rerun = run2myrex(rerun, str, keys)
+    IO.inspect(rerun, label: "REGEX my  run")
+    assert mycaps == rerun
+  end
+
+  defp named2myrex(caps, str) do
+    # HACK ALERT - this will remove positive empty matches of zero-or-x quantifiers
+    :maps.filter(fn _, ix -> ix != {-1, 0} and ix != "" end, caps)
+    |> Map.put(0, str)
+  end
+
+  defp run2myrex(run, str, names) do
+    # HACK ALERT - this will remove positive empty matches of zero-or-x quantifiers
+    names |> Enum.zip(run) |> Map.new() |> Map.put(0, str)
+  end
 end

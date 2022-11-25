@@ -183,7 +183,7 @@ defmodule Myrex.LexerTest do
   defp equal(re, toks), do: assert(toks == lex(re))
 
   defp lex(re) do
-    {toks, _} = Lexer.lex(re)
+    toks = Lexer.lex(re)
     IO.inspect(toks, label: "TOKS")
     mystr = Lexer.tok2str(toks)
     IO.inspect("#{re} -> #{mystr}")

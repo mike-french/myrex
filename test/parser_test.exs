@@ -256,7 +256,7 @@ defmodule Myrex.ParserTest do
     IO.inspect(ast, label: "AST  ")
     expect = AST.ast2str(ast)
     IO.puts(expect)
-    {toks, _} = Lexer.lex(re)
+    toks = Lexer.lex(re)
     IO.inspect(toks, label: "TOK  ")
     myast = Parser.parse(toks)
     IO.inspect(myast, label: "MYAST")
@@ -266,12 +266,12 @@ defmodule Myrex.ParserTest do
   end
 
   defp bad_par(re) do
-    {toks, _} = Lexer.lex(re)
+    toks = Lexer.lex(re)
     assert_raise ArgumentError, fn -> Parser.parse(toks) end
   end
 
   defp postfix(re, expect) do
-    {toks, _} = Lexer.lex(re)
+    toks = Lexer.lex(re)
     IO.inspect(toks, label: "TOKS")
     tokstr = Lexer.tok2str(toks)
     IO.inspect("#{re} -> #{tokstr}")

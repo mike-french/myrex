@@ -18,8 +18,6 @@ defmodule Myrex.Lexer do
 
   @doc """
   Convert a regular expression string to a list of tokens and characters.
-
-  Also return a count of the number of explicit groups in the regular expression.
   """
   @spec lex(String.t()) :: {T.tokens(), T.count()}
 
@@ -31,7 +29,7 @@ defmodule Myrex.Lexer do
     re |> String.to_charlist() |> re2tok([], 1)
   end
 
-  @spec re2tok(charlist(), T.tokens(), T.count()) :: {T.tokens(), T.count()}
+  @spec re2tok(charlist(), T.tokens(), T.count()) :: T.tokens()
 
   defp re2tok([?\\, c | t], toks, g) when not is_alpha(c), do: re2tok(t, [c | toks], g)
 
@@ -52,7 +50,6 @@ defmodule Myrex.Lexer do
 
   defp re2tok([?(, ??, ?< | t], toks, g) do
     {name, rest} = name(t, '')
-    # TODO - should have name and index g
     re2tok(rest, [{:begin_group, {g, name}} | toks], g + 1)
   end
 
@@ -94,7 +91,7 @@ defmodule Myrex.Lexer do
   defp re2tok([?\\], _, _),
     do: raise(ArgumentError, message: "Expecting escaped character after '\\'")
 
-  defp re2tok([], toks, g), do: {Enum.reverse(toks), g - 1}
+  defp re2tok([], toks, _g), do: Enum.reverse(toks)
 
   # Read a hex value.
   # @spec hex(charlist(), charlist()) :: {charlist(), char()}
@@ -169,6 +166,7 @@ defmodule Myrex.Lexer do
   end
 
   defp tok2re([], re), do: re |> Enum.reverse() |> to_string()
+
   defp tok2re([_ | _], _), do: raise(ArgumentError, message: "Unexpected lexical element")
 
   # Convert a token atom to a character.

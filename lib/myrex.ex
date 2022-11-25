@@ -18,6 +18,8 @@ defmodule Myrex do
   """
   @spec compile(T.regex(), T.options()) :: pid()
   def compile(re, opts \\ []) do
+    validate_options(opts)
+
     gname =
       case Keyword.get(opts, :graph_name, nil) do
         nil -> nil
@@ -74,6 +76,7 @@ defmodule Myrex do
   def search(re, str, opts) when is_binary(re) and is_binary(str) and is_list(opts) do
     # oneshot execution
     # executor will compile, run and teardown the NFA process network
+    validate_options(str, opts)
     Process.flag(:trap_exit, true)
     # TODO - using a named group would help conversion of results
     # using :search name should make success handling produce search result directly
@@ -84,6 +87,7 @@ defmodule Myrex do
   def search(start, str, opts) when is_pid(start) and is_binary(str) and is_list(opts) do
     # batch execution 
     # executor will build transient prefix network for zero or more any character
+    validate_options(str, opts)
     Process.flag(:trap_exit, true)
     Executor.init_search(start, str, opts)
     do_match(str, opts)
@@ -116,12 +120,14 @@ defmodule Myrex do
   def match(re, str, opts) when is_binary(re) and is_binary(str) and is_list(opts) do
     # oneshot execution
     # the executor will compile, run and teardown the NFA process network
+    validate_options(str, opts)
     Process.flag(:trap_exit, true)
     Executor.init_oneshot(re, str, opts)
     do_match(str, opts)
   end
 
   def match(start, str, opts) when is_pid(start) and is_binary(str) and is_list(opts) do
+    validate_options(str, opts)
     Process.flag(:trap_exit, true)
     Executor.init_batch(start, str, opts)
     do_match(str, opts)
@@ -252,5 +258,35 @@ defmodule Myrex do
       |> Enum.sort()
 
     {:searches, searches}
+  end
+
+  # check run-time options, including those that depend on the input string
+  defp validate_options(str, opts) do
+    offset = Keyword.get(opts, :offset, 0)
+
+    if offset < 0 do
+      raise ArgumentError, message: "Option 'offset' must be positive: #{offset}"
+    end
+
+    if str != "" and offset >= String.length(str) do
+      raise ArgumentError, message: "Option 'offset' exceeds string length: #{offset}"
+    end
+
+    validate_options(opts)
+  end
+
+  # validate compile-time and run-time options
+  defp validate_options(opts) do
+    timeout = Keyword.get(opts, :timeout, T.default(:timeout))
+
+    if timeout < 0 do
+      raise ArgumentError, message: "Option 'timeout' must be positive: #{timeout}"
+    end
+
+    multiple = Keyword.get(opts, :multiple, T.default(:multiple))
+
+    if multiple != :one and multiple != :all do
+      raise ArgumentError, message: "Illegal 'multiple' option value: #{multiple}"
+    end
   end
 end

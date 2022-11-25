@@ -110,11 +110,15 @@ The set of all captures is returned as a map of name keys
 to capture values. 
 
 Groups can be explicitly labelled with string names
-using the syntax `(?<name>....)`.
+using the syntax `(?<name>`....`)`.
 
-Unlabelled groups are implicitly labelled with 1-based integers
+Unlabelled groups `(`...`)` are implicitly named with 1-based integers
 based on the position of the opening `(` in the REGEX.
-The 0-index capture always refers to the whole input string.
+
+Groups can be forced to be non-capturing
+using the syntax `(?:`...`.)`.
+
+The 0 capture key always refers to the whole input string.
 
 Capture values can be represented in two ways:
 * The `{position, length}` reference into the input string.
@@ -523,6 +527,8 @@ The currently supported keys and values are:
   force the _any character_ wildcard `.` to include newline `\n`.
   
 `:timeout` (integer, default 1000ms) - the timeout (ms) for executing a string match.
+
+`:offset` (integer, default 0) - the 0-based offset for the initial position in the string
 
 `:multiple` decide behviour when the regular expression is ambiguous:
 * `:one` (default) - stop at the first successful match, return the capture.

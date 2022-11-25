@@ -22,6 +22,9 @@
 
 * Performance tests
 
+* Use the Regex library to compare REGEX validity,
+  results and performance.
+
 * Make Graph accept procs not pids
   maybe lift proc tuples to have a :proc tag
   but performance hit of tuple construction,
@@ -29,6 +32,9 @@
   
 * Add generator function to the NFAs
   Use constant factor option for decay of 'more'
+  Create new BeginAnd node for negated char classes, no-op for traversals 
   
 * Interface and test for parallel streaming of input strings
+
+* Catch exceptions and return error tuple at top level Myrex
 

@@ -17,12 +17,12 @@ defmodule Myrex.Compiler do
   """
   @spec compile(T.regex(), Keyword.t()) :: pid()
   def compile(re, opts) do
-    {toks, gmax} = Lexer.lex(re)
+    toks = Lexer.lex(re)
     ast = Parser.parse(toks)
     aststr = AST.ast2str(ast)
     IO.puts(aststr)
     nfa = ast2nfa(ast, opts)
-    success = Success.init(gmax)
+    success = Success.init()
     Proc.connect(nfa, success)
     Proc.input(nfa)
   end

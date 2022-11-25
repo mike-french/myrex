@@ -62,6 +62,10 @@ defmodule Myrex.Types do
   @type capture_flag() :: :none | :named | :all
   @type return_flag() :: :index | :binary
 
+  def default(:timeout), do: 1_000
+  def default(:multiple), do: :one
+  def default(:dotall), do: false
+
   @typedoc """
   The name for a capture group. 
 
@@ -74,6 +78,12 @@ defmodule Myrex.Types do
            when (is_integer(n) and n >= 0) or
                   (is_tuple(n) and tuple_size(n) == 2) or
                   n == :search
+
+  @doc "Get the list of capture keys from a capture name."
+  @spec names(capture_name()) :: [count1() | String.t()]
+  def names({g, name}), do: [g, name]
+  def names(g) when is_integer(g) or is_binary(g), do: [g]
+  def names(:search), do: []
 
   @typedoc "A reference into the input string for a capture."
   @type capture_index() :: {position(), count1()}
