@@ -32,12 +32,6 @@ Processes implementing rules that do not match the input
 cause the traversal to terminate. A traversal that reaches the 
 final process returns a successful match of the input.
 
-A successful match result contains references or substrings of the input 
-captured for groups in the REGEX. 
-Groups can be explicitly labelled with string names. 
-Unlabelled groups are implicitly labelled with 1-based integers
-based on the position of the opening `(` in the REGEX.
-
 The runtime execution of the process network depends on
 the Erlang BEAM scheduler being _fair,_
 which means that all active traversals will make some
@@ -113,16 +107,21 @@ A _group_ in the REGEX is delimited by brackets: `(...)`.
 When an input string is successfully matched, 
 the fragment matching the group is stored as a _capture._
 The set of all captures is returned as a map of name keys
-to capture valules. 
+to capture values. 
 
-Names are the 1-based integer order 
-of the opening `(` in the REGEX. 
+Groups can be explicitly labelled with string names
+using the syntax `(?<name>....)`.
+
+Unlabelled groups are implicitly labelled with 1-based integers
+based on the position of the opening `(` in the REGEX.
 The 0-index capture always refers to the whole input string.
-In future, explicitly named captures will be supported.
 
 Capture values can be represented in two ways:
 * The `{position, length}` reference into the input string.
 * The actual substring (binary) matched by the group.
+
+Processing of captures for a successful result
+is controlled by the `:capture` and `:return` options (see below).
 
 ## NFA Design
 
