@@ -1,6 +1,8 @@
 defmodule Myrex.ParserTest do
   use ExUnit.Case
 
+  import Myrex.TestUtil
+
   alias Myrex.AST
   alias Myrex.Lexer
   alias Myrex.Parser
@@ -251,17 +253,17 @@ defmodule Myrex.ParserTest do
   end
 
   defp do_par(re, ast) do
-    IO.puts("")
-    IO.inspect(re, label: "RE   ")
-    IO.inspect(ast, label: "AST  ")
+    newline()
+    dump(re, label: "RE   ")
+    dump(ast, label: "AST  ")
     expect = AST.ast2str(ast)
-    IO.puts(expect)
+    puts(expect)
     toks = Lexer.lex(re)
-    IO.inspect(toks, label: "TOK  ")
+    dump(toks, label: "TOK  ")
     myast = Parser.parse(toks)
-    IO.inspect(myast, label: "MYAST")
+    dump(myast, label: "MYAST")
     mystr = AST.ast2str(myast)
-    IO.puts(mystr)
+    puts(mystr)
     assert expect == mystr
   end
 
@@ -272,12 +274,12 @@ defmodule Myrex.ParserTest do
 
   defp postfix(re, expect) do
     toks = Lexer.lex(re)
-    IO.inspect(toks, label: "TOKS")
+    dump(toks, label: "TOKS")
     tokstr = Lexer.tok2str(toks)
-    IO.inspect("#{re} -> #{tokstr}")
+    dump("#{re} -> #{tokstr}")
     postfix = Parser.postfix(toks)
     poststr = Lexer.tok2str(postfix)
-    IO.inspect("      -> #{poststr}")
+    dump("      -> #{poststr}")
     assert expect == postfix
   end
 end

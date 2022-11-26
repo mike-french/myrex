@@ -21,7 +21,7 @@ defmodule Myrex.NFA.EndGroup do
   @spec match(pid()) :: no_return()
   defp match(next) do
     receive do
-      {str, pos, [{name, begin} = grp | groups], caps, executor} ->
+      {str, pos, [{name, begin} | groups], caps, executor} ->
         # pop the open group off the stack, update the capture results
         # capture is a start-length pair of positions in the input
         # includes zero length captures "" for `?` and `*` operators

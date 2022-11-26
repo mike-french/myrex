@@ -17,13 +17,9 @@ defmodule Myrex.Compiler do
   """
   @spec compile(T.regex(), Keyword.t()) :: pid()
   def compile(re, opts) do
-    toks = Lexer.lex(re)
-    ast = Parser.parse(toks)
-    aststr = AST.ast2str(ast)
-    IO.puts(aststr)
-    nfa = ast2nfa(ast, opts)
-    success = Success.init()
-    Proc.connect(nfa, success)
+    #  IO.puts(AST.ast2str(ast))
+    nfa = re |> Lexer.lex() |> Parser.parse() |> ast2nfa(opts)
+    Proc.connect(nfa, Success.init())
     Proc.input(nfa)
   end
 

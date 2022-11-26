@@ -1,6 +1,8 @@
 defmodule Myrex.ASTTest do
   use ExUnit.Case
 
+  import Myrex.TestUtil
+
   alias Myrex.AST
 
   test "chars" do
@@ -62,13 +64,13 @@ defmodule Myrex.ASTTest do
   end
 
   defp do_ast(re, ast) do
-    IO.inspect(re, label: "RE")
-    IO.inspect(ast, label: "AST")
+    dump(re, label: "RE")
+    dump(ast, label: "AST")
 
     myre = AST.ast2re(ast)
     assert re == myre
 
     mystr = AST.ast2str(ast)
-    IO.puts(mystr)
+    puts(mystr)
   end
 end

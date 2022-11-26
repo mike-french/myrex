@@ -1,6 +1,8 @@
 defmodule Myrex.LexerTest do
   use ExUnit.Case
 
+  import Myrex.TestUtil
+
   alias Myrex.Lexer
 
   test "par_badlex_test" do
@@ -184,9 +186,9 @@ defmodule Myrex.LexerTest do
 
   defp lex(re) do
     toks = Lexer.lex(re)
-    IO.inspect(toks, label: "TOKS")
+    dump(toks, label: "TOKS")
     mystr = Lexer.tok2str(toks)
-    IO.inspect("#{re} -> #{mystr}")
+    dump("#{re} -> #{mystr}")
     toks
   end
 

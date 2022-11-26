@@ -1,6 +1,8 @@
 defmodule Myrex.MyrexTest do
   use ExUnit.Case, async: false
 
+  import Myrex.TestUtil
+
   alias Myrex.Types, as: T
 
   @type expect() :: :no_match | :match | :matches | T.result()
@@ -266,7 +268,6 @@ defmodule Myrex.MyrexTest do
       def_opts = [capture: :all, return: :index, graph_name: :re]
 
       re = "Z"
-      IO.inspect(unquote(mode), label: "MODE")
       re_nfa = build(re, unquote(mode))
 
       opts = def_opts ++ [multiple: :one]
@@ -292,7 +293,6 @@ defmodule Myrex.MyrexTest do
       def_opts = [capture: :all, return: :index, graph_name: :re]
 
       re = "a(bc)"
-      IO.inspect(unquote(mode), label: "MODE")
       re_nfa = build(re, unquote(mode))
 
       opts = def_opts ++ [multiple: :one]
@@ -368,22 +368,34 @@ defmodule Myrex.MyrexTest do
 
     test "exponential matches #{mode}" do
       # match a^n against (a?)^n (a*)^n
-      # Enum.each(1..10, fn n -> IO.inspect(mdot(n), label: "mdot #{n}") end)
-      n = 4
       opts = @default_opts
-      {re, str} = dup(n)
-      re_nfa = build(re, unquote(mode))
 
-      # TODO - iterate over n and get performance of one/all
-      do_apply(:match, re_nfa, str, opts ++ [multiple: :one])
+      results =
+        Enum.map(1..4, fn n ->
+          assert n < 10
+          {re, str} = dup(n)
+          re_nfa = build(re, unquote(mode))
 
-      if n < 10 do
-        {:matches, all} = do_apply(:match, re_nfa, str, opts ++ [multiple: :all, timeout: 10_000])
-        IO.inspect(length(all), label: "LENGTH")
-        assert length(all) == mdot(n)
-      end
+          {_, t_one} = do_apply(:match, re_nfa, str, opts ++ [multiple: :one])
 
-      Myrex.teardown(re_nfa)
+          {{:matches, all}, t_all} =
+            do_apply(:match, re_nfa, str, opts ++ [multiple: :all, timeout: 10_000])
+
+          assert length(all) == mdot(n)
+
+          Myrex.teardown(re_nfa)
+
+          reopts = [capture: :all, return: :index]
+          {:ok, regex} = Regex.compile(re, [])
+          {t_regex, _rerun} = :timer.tc(fn -> Regex.run(regex, str, reopts) end)
+          {length(all), t_one, t_all, t_regex}
+        end)
+
+      set_dump(true)
+      newline()
+      dump(results, label: "EXECUTION")
+      1..10 |> Enum.map(&mdot(&1)) |> dump(label: "CALCULATED")
+      set_dump(false)
     end
   end
 
@@ -415,7 +427,7 @@ defmodule Myrex.MyrexTest do
   # optionally compile the regular expression to an NFA process network
   @spec build(T.regex(), :batch | :oneshot, T.options()) :: T.regex() | pid()
   defp build(re, mode, opts \\ @default_opts) do
-    IO.inspect(re, label: "RE    ")
+    dump(re, label: "RE    ")
 
     case mode do
       :batch -> Myrex.compile(re, opts)
@@ -430,7 +442,7 @@ defmodule Myrex.MyrexTest do
   defp exec(:match, re_nfa, str, {:matches, _} = expect, opts) do
     {:matches, expect_caps} = success = add_def_cap(str, expect)
 
-    case do_apply(:match, re_nfa, str, opts) do
+    case do_apply(:match, re_nfa, str, opts) |> elem(0) do
       {:matches, actual_caps} -> assert Enum.sort(expect_caps) == Enum.sort(actual_caps)
       # these will fail, but we want the detailed error message for the comparison
       {:match, actual} -> assert actual in expect_caps
@@ -441,7 +453,7 @@ defmodule Myrex.MyrexTest do
   defp exec(:search, re_nfa, str, {:searches, _} = expects, opts) do
     {:searches, expect_srchs} = success = add_def_cap(str, expects)
 
-    case do_apply(:search, re_nfa, str, opts) do
+    case do_apply(:search, re_nfa, str, opts) |> elem(0) do
       {:searches, actual_srchs} -> assert Enum.sort(expect_srchs) == actual_srchs
       # these will fail, but we want the detailed error message for the comparison
       fail -> assert fail == success
@@ -450,20 +462,20 @@ defmodule Myrex.MyrexTest do
 
   defp exec(f, re_nfa, str, expects, opts) when is_list(expects) do
     results = Enum.map(expects, &add_def_cap(str, &1))
-    assert do_apply(f, re_nfa, str, opts) in results
+    assert elem(do_apply(f, re_nfa, str, opts), 0) in results
   end
 
   defp exec(f, re_nfa, str, expect, opts) do
-    assert add_def_cap(str, expect) == do_apply(f, re_nfa, str, opts)
+    assert add_def_cap(str, expect) == do_apply(f, re_nfa, str, opts) |> elem(0)
   end
 
-  @spec do_apply(atom(), T.regex() | pid(), String.t(), T.options()) :: any()
+  @spec do_apply(atom(), T.regex() | pid(), String.t(), T.options()) :: {any(), non_neg_integer()}
   defp do_apply(f, re_nfa, str, opts) do
-    IO.inspect(str, label: "STR   ")
+    dump(str, label: "STR   ")
     {time, value} = :timer.tc(fn -> apply(Myrex, f, [re_nfa, str, opts]) end)
-    IO.inspect(value, label: "RESULT")
-    IO.inspect(time, label: "TIME (us)")
-    value
+    dump(value, label: "RESULT")
+    dump(time, label: "TIME (us)")
+    {value, time}
   end
 
   # add the default whole string capture to expected results
@@ -504,23 +516,23 @@ defmodule Myrex.MyrexTest do
     myopts = [capture: :named, return: return]
     reopts = [capture: :all, return: return]
     {:ok, regex} = Regex.compile(re, [])
-    IO.inspect(regex, label: "REGEX")
+    dump(regex, label: "REGEX")
     assert Enum.sort(expected_names) == Enum.sort(Regex.names(regex))
 
     recaps = Regex.named_captures(regex, str, reopts)
-    IO.inspect(recaps, label: "REGEX re   caps")
+    dump(recaps, label: "REGEX re   caps")
     recaps = named2myrex(recaps, str)
     {:match, mycaps} = Myrex.match(re, str, myopts)
-    IO.inspect(recaps, label: "REGEX remy caps")
-    IO.inspect(mycaps, label: "REGEX my   caps")
+    dump(recaps, label: "REGEX remy caps")
+    dump(mycaps, label: "REGEX my   caps")
     assert mycaps == recaps
 
     rerun = Regex.run(regex, str, reopts)
-    IO.inspect(rerun, label: "REGEX re  run")
+    dump(rerun, label: "REGEX re  run")
     keys = Map.keys(mycaps)
-    IO.inspect(keys, label: "REGEX keys")
+    dump(keys, label: "REGEX keys")
     rerun = run2myrex(rerun, str, keys)
-    IO.inspect(rerun, label: "REGEX my  run")
+    dump(rerun, label: "REGEX my  run")
     assert mycaps == rerun
   end
 
@@ -531,7 +543,6 @@ defmodule Myrex.MyrexTest do
   end
 
   defp run2myrex(run, str, names) do
-    # HACK ALERT - this will remove positive empty matches of zero-or-x quantifiers
     names |> Enum.zip(run) |> Map.new() |> Map.put(0, str)
   end
 end
