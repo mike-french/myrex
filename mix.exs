@@ -28,6 +28,7 @@ defmodule Myrex.MixProject do
 
   defp deps do
     [
+      {:unicode, "~> 1.15"},
       {:dialyxir, "~> 1.0", only: [:dev], runtime: false},
       {:ex_doc, "~> 0.27", only: :dev, runtime: false}
     ]

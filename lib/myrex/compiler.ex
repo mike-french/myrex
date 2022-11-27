@@ -3,7 +3,6 @@ defmodule Myrex.Compiler do
 
   alias Myrex.Types, as: T
 
-  alias Myrex.AST
   alias Myrex.Lexer
   alias Myrex.NFA
   alias Myrex.NFA.Proc
@@ -17,7 +16,6 @@ defmodule Myrex.Compiler do
   """
   @spec compile(T.regex(), Keyword.t()) :: pid()
   def compile(re, opts) do
-    #  IO.puts(AST.ast2str(ast))
     nfa = re |> Lexer.lex() |> Parser.parse() |> ast2nfa(opts)
     Proc.connect(nfa, Success.init())
     Proc.input(nfa)
@@ -28,18 +26,18 @@ defmodule Myrex.Compiler do
   # return the input process address.
   @spec ast2nfa(T.ast(), T.options()) :: pid()
 
-  defp ast2nfa(c, _opts) when is_integer(c) do
-    NFA.match_char(c)
-  end
-
-  defp ast2nfa({:char_range, c1, c2}, _opts) do
-    NFA.match_char_range({c1, c2})
-  end
+  defp ast2nfa(c, _opts) when is_integer(c), do: NFA.match_char(c)
+  defp ast2nfa({:char_range, c1, c2}, _opts), do: NFA.match_char_range({c1, c2})
 
   defp ast2nfa(:any_char, opts) do
     opts
     |> Keyword.get(:dotall, false)
     |> NFA.match_any_char()
+  end
+
+  defp ast2nfa({tag, _sign, _prop} = node, _opts)
+       when tag == :char_block or tag == :char_category or tag == :char_script do
+    NFA.match_property(node)
   end
 
   defp ast2nfa({:zero_one, node}, opts) do
@@ -128,14 +126,14 @@ defmodule Myrex.Compiler do
     |> NFA.alternate("|")
   end
 
-  defp ast2nfa({:char_class, ccs}, opts) do
+  defp ast2nfa({:char_class, :pos, ccs}, opts) do
     # regular char class is alternate OR choice of elements
-    ccs |> Enum.map(&cc2nfa(&1, opts, false)) |> NFA.alternate("[]")
+    ccs |> Enum.map(&cc2nfa(&1, opts, :pos)) |> NFA.alternate("[]")
   end
 
-  defp ast2nfa({:char_class_neg, ccs}, opts) do
+  defp ast2nfa({:char_class, :neg, ccs}, opts) do
     # negated char class is AND sequence of negated (peek lookahead) elements
-    ccs |> Enum.map(&cc2nfa(&1, opts, true)) |> NFA.and_sequence()
+    ccs |> Enum.map(&cc2nfa(&1, opts, :neg)) |> NFA.and_sequence()
   end
 
   defp ast2nfa(ast, _) do
@@ -143,25 +141,30 @@ defmodule Myrex.Compiler do
   end
 
   # convert character class leaf nodes to Match nodes
-  @spec cc2nfa(T.ast(), T.options(), boolean()) :: pid()
+  @spec cc2nfa(T.ast(), T.options(), T.sign()) :: pid()
 
-  defp cc2nfa(c, _opts, neg?) when is_integer(c) do
-    NFA.match_char(c, neg?)
+  defp cc2nfa(c, _opts, ccsign) when is_integer(c) do
+    NFA.match_char(c, ccsign)
   end
 
-  defp cc2nfa({:char_range, c1, c2}, _opts, neg?) do
-    NFA.match_char_range({c1, c2}, neg?)
+  defp cc2nfa({:char_range, c1, c2}, _opts, ccsign) do
+    NFA.match_char_range({c1, c2}, ccsign)
   end
 
-  defp cc2nfa(:any_char, opts, neg?) do
+  defp cc2nfa(:any_char, opts, ccsign) do
     # is any_char allowed in char class???
     # always passes or ^fails 
     opts
     |> Keyword.get(:dotall, false)
-    |> NFA.match_any_char(neg?)
+    |> NFA.match_any_char(ccsign)
+  end
+
+  defp cc2nfa({tag, _sign, _prop} = node, _opts, ccsign)
+       when tag == :char_block or tag == :char_category or tag == :char_script do
+    NFA.match_property(node, ccsign)
   end
 
   defp cc2nfa(ast, _, _) do
-    raise RuntimeError, message: "Error: no nfa clause for character class #{ast}"
+    raise RuntimeError, message: "Error: no nfa clause for character class #{inspect(ast)}"
   end
 end

@@ -113,6 +113,69 @@ defmodule Myrex.MyrexTest do
       Myrex.teardown(re_nfa)
     end
 
+    test "unicode property test #{mode}" do
+      re = "\\p{Lu}+"
+      re_nfa = build(re, unquote(mode))
+
+      exec(:match, re_nfa, "A", :match)
+      exec(:match, re_nfa, "XYZ", :match)
+
+      exec(:match, re_nfa, "", :no_match)
+
+      exec(:match, re_nfa, "a", :no_match)
+      exec(:match, re_nfa, "+", :no_match)
+      exec(:match, re_nfa, " ", :no_match)
+
+      Myrex.teardown(re_nfa)
+
+      # negative
+
+      re = "\\P{Lu}+"
+      re_nfa = build(re, unquote(mode))
+
+      exec(:match, re_nfa, "A", :no_match)
+      exec(:match, re_nfa, "XYZ", :no_match)
+
+      exec(:match, re_nfa, "", :no_match)
+      exec(:match, re_nfa, "a", :match)
+      exec(:match, re_nfa, "+", :match)
+      exec(:match, re_nfa, " ", :match)
+
+      Myrex.teardown(re_nfa)
+
+      # negative
+
+      re = "[^\\p{Lu}]+"
+      re_nfa = build(re, unquote(mode))
+
+      exec(:match, re_nfa, "A", :no_match)
+      exec(:match, re_nfa, "XYZ", :no_match)
+
+      exec(:match, re_nfa, "", :no_match)
+
+      exec(:match, re_nfa, "a", :match)
+      exec(:match, re_nfa, "+", :match)
+      exec(:match, re_nfa, " ", :match)
+
+      Myrex.teardown(re_nfa)
+
+      # double negative
+
+      re = "[^\\P{Lu}]+"
+      re_nfa = build(re, unquote(mode))
+
+      exec(:match, re_nfa, "A", :match)
+      exec(:match, re_nfa, "XYZ", :match)
+
+      exec(:match, re_nfa, "", :no_match)
+
+      exec(:match, re_nfa, "a", :no_match)
+      exec(:match, re_nfa, "+", :no_match)
+      exec(:match, re_nfa, " ", :no_match)
+
+      Myrex.teardown(re_nfa)
+    end
+
     test "char any quantifiers test #{mode}" do
       re = ".?Z"
       re_nfa = build(re, unquote(mode))

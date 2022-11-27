@@ -10,6 +10,12 @@ defmodule Myrex.Lexer do
   # future ^ $
   @escape '.*+?|(){}[]-\\'
 
+  @blocks Unicode.Block.known_blocks()
+  @categories Unicode.GeneralCategory.known_categories()
+  @scripts Unicode.Script.known_scripts()
+
+  # ascii definitions as guards for lexing the REGEX
+  # not character categories for runtime matching of inputs
   defguard is_ascii(c) when is_integer(c) and c > 0 and c < 128
   defguard is_alpha(c) when (c >= ?a and c <= ?z) or (c >= ?A and c <= ?Z)
   defguard is_digit(c) when c >= ?0 and c <= ?9
@@ -39,6 +45,16 @@ defmodule Myrex.Lexer do
   defp re2tok([?\\, ?r | t], toks, g), do: re2tok(t, [?\r | toks], g)
   defp re2tok([?\\, ?t | t], toks, g), do: re2tok(t, [?\t | toks], g)
   defp re2tok([?\\, ?v | t], toks, g), do: re2tok(t, [?\v | toks], g)
+
+  defp re2tok([?\\, ?p, ?{ | t], toks, g) do
+    {tok, rest} = property(t, '', :pos)
+    re2tok(rest, [tok | toks], g)
+  end
+
+  defp re2tok([?\\, ?P, ?{ | t], toks, g) do
+    {tok, rest} = property(t, '', :neg)
+    re2tok(rest, [tok | toks], g)
+  end
 
   defp re2tok([?. | t], toks, g), do: re2tok(t, [:any_char | toks], g)
   defp re2tok([?? | t], toks, g), do: re2tok(t, [:zero_one | toks], g)
@@ -122,6 +138,42 @@ defmodule Myrex.Lexer do
 
   defp name([], _cs),
     do: raise(ArgumentError, message: "Lexer error: group name must be closed with '>'")
+
+  # Read the property of a unicode character set
+  @spec property(charlist(), charlist(), T.sign()) :: {{atom(), T.sign(), String.t()}, charlist()}
+
+  defp property([?} | _], [], _sign),
+    do: raise(ArgumentError, message: "Lexer error: empty property name '{}'")
+
+  defp property([?} | t], cs, sign) do
+    prop_str = cs |> Enum.reverse() |> to_string()
+    prop = prop_str |> String.to_atom()
+
+    # categories are short case-sensitive strings, so take them literally
+    if prop in @categories do
+      {{:char_category, sign, prop}, t}
+    else
+      # allow uppercase and spaces in blocks and scripts
+      prop = prop_str |> String.downcase() |> String.replace(" ", "_") |> String.to_atom()
+
+      # HACK ALERT - there are many blocks that are also scripts
+      # match block first to get the broadest definition
+      cond do
+        prop in @blocks -> {{:char_block, sign, prop}, t}
+        prop in @scripts -> {{:char_script, sign, prop}, t}
+        true -> raise ArgumentError, message: "Lexer error: invalid unicode property '#{prop}'"
+      end
+    end
+  end
+
+  defp property([c | t], cs, sign) when is_alpha(c) or c == ?_ or c == ?\s,
+    do: property(t, [c | cs], sign)
+
+  defp property([c | _], _cs, _sign),
+    do: raise(ArgumentError, message: "Lexer error: illegal property name character '#{c}'")
+
+  defp property([], _cs, _sign),
+    do: raise(ArgumentError, message: "Lexer error: property name must be closed with '}'")
 
   @doc """
   Convert a list of lexical tokens
@@ -214,6 +266,16 @@ defmodule Myrex.Lexer do
 
   defp tok2str([{:repeat, nrep} | toks], strs) when is_integer(nrep),
     do: tok2str(toks, [?\s, ?}, Integer.to_charlist(nrep), "{repeat," | strs])
+
+  defp tok2str([{tag, :pos, prop} | toks], strs)
+       when (tag == :char_block or tag == :char_category or tag == :char_script) and is_atom(prop) do
+    tok2str(toks, [?}, Atom.to_string(prop), "\\p{" | strs])
+  end
+
+  defp tok2str([{tag, :neg, prop} | toks], strs)
+       when (tag == :char_block or tag == :char_category or tag == :char_script) and is_atom(prop) do
+    tok2str(toks, [?}, Atom.to_string(prop), "\\P{" | strs])
+  end
 
   defp tok2str([], strs), do: strs |> Enum.reverse() |> List.flatten()
 

@@ -3,7 +3,8 @@
 
 * {N,M} repeats, including {N,} syntax for 'or more'
 
-* Character classes: scripts, categories
+* Short escapes for char classes \d \D \h \H \s \S \v \V \w \W
+  Named char classes [: :]
 
 * Line matching $ ^
 
@@ -18,7 +19,7 @@
 * Clarify build-time and run-time options
   especially group captures, names, etc.
 
-* Performance tests
+* Performance tests, :timer.tc and maybe benchee
 
 * Use the Regex library to compare REGEX validity,
   results and performance.
@@ -35,4 +36,5 @@
 * Interface and test for parallel streaming of input strings
 
 * Catch exceptions and return error tuple at top level Myrex
+
 

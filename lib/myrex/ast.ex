@@ -50,13 +50,21 @@ defmodule Myrex.AST do
   defp node2re({:one_more, node}), do: [node2re(node), ?+]
   defp node2re({:zero_more, node}), do: [node2re(node), ?*]
   defp node2re({:repeat, r, node}), do: [node2re(node), ?{, Integer.to_string(r), ?}]
-  defp node2re({:char_class, ccs}), do: [?[, Enum.map(ccs, &cc2re(&1)), ?]]
-  defp node2re({:char_class_neg, ccs}), do: [?[, ?^, Enum.map(ccs, &cc2re(&1)), ?]]
+  defp node2re({:char_class, :pos, ccs}), do: [?[, Enum.map(ccs, &cc2re(&1)), ?]]
+  defp node2re({:char_class, :neg, ccs}), do: [?[, ?^, Enum.map(ccs, &cc2re(&1)), ?]]
 
-  # Convert a character class element to text format.
-  @spec cc2re(char() | T.char_pair()) :: IO.chardata()
-  defp cc2re({:char_range, c1, c2}), do: [esc(c1), ?-, esc(c2)]
+  defp node2re({_tag, _sign, _prop} = node), do: cc2re(node)
+
+  # Convert a character class element to text format
+  # support any_char?
+  @spec cc2re(char() | T.char_pair() | T.char_property()) :: IO.chardata()
   defp cc2re(c) when is_char(c), do: esc(c)
+  defp cc2re({:char_range, c1, c2}), do: [esc(c1), ?-, esc(c2)]
+  defp cc2re(:any_char), do: ?.
+
+  defp cc2re({tag, sign, prop})
+       when tag == :char_block or tag == :char_category or tag == :char_script,
+       do: [?\\, ?\\, psign(sign), ?{, Atom.to_string(prop), ?}]
 
   @doc """
   Convert an AST tree of operators
@@ -84,6 +92,11 @@ defmodule Myrex.AST do
 
   defp ast2str(:any_char, d) do
     [indent(d), ?., ?\n]
+  end
+
+  defp ast2str({tag, sign, prop}, d)
+       when tag == :char_block or tag == :char_category or tag == :char_script do
+    [indent(d), ?\\, ?\\, psign(sign), ?{, Atom.to_string(prop), ?}, ?\n]
   end
 
   defp ast2str({:sequence, nodes}, d) do
@@ -156,8 +169,8 @@ defmodule Myrex.AST do
     ]
   end
 
-  defp ast2str({:char_class, ccs}, d), do: do_cc2str(ccs, d, "[\n")
-  defp ast2str({:char_class_neg, ccs}, d), do: do_cc2str(ccs, d, "[^\n")
+  defp ast2str({:char_class, :pos, ccs}, d), do: do_cc2str(ccs, d, "[\n")
+  defp ast2str({:char_class, :neg, ccs}, d), do: do_cc2str(ccs, d, "[^\n")
 
   defp ast2str(x, _), do: raise(ArgumentError, message: "Illegal AST node '#{inspect(x)}'")
 
@@ -179,7 +192,17 @@ defmodule Myrex.AST do
   @spec cc2str(char() | T.char_range()) :: IO.chardata()
   defp cc2str({:char_range, c1, c2}), do: to_string([esc(c1), ?-, esc(c2)])
   defp cc2str(:any_char), do: "."
+
+  defp cc2str({tag, sign, prop})
+       when tag == :char_block or tag == :char_category or tag == :char_script do
+    [?\\, ?\\, psign(sign), ?{, Atom.to_string(prop), ?}]
+  end
+
   defp cc2str(c) when is_char(c), do: esc(c)
+
+  # convert sign to REGEX escape letter 
+  defp psign(:pos), do: ?p
+  defp psign(:neg), do: ?P
 
   # escape individual characters 
   @spec esc(char()) :: char() | charlist()

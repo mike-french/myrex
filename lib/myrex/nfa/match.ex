@@ -6,7 +6,8 @@ defmodule Myrex.NFA.Match do
   alias Myrex.Executor
   alias Myrex.NFA.Proc
 
-  @spec init(T.acceptor(), boolean(), String.t()) :: pid()
+  @spec init(T.acceptor(), T.boolean(), String.t()) :: pid()
+
   def init(accept?, peek?, label) when is_function(accept?, 1) and is_boolean(peek?) do
     # peek lookahead does not advance the input position
     Proc.init_child(__MODULE__, :attach, [accept?, peek?, label], label)

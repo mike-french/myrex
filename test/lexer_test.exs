@@ -5,32 +5,32 @@ defmodule Myrex.LexerTest do
 
   alias Myrex.Lexer
 
-  test "par_badlex_test" do
+  test "empty test" do
     bad_lex("")
   end
 
-  test "lex_char_test" do
+  test "lex char test" do
     equal("a", 'a')
     equal("aabb", 'aabb')
   end
 
-  test "lex_any_test" do
+  test "lex any test" do
     equal(".", [:any_char])
     equal("a.b", [?a, :any_char, ?b])
   end
 
-  test "lex_quantifier_test" do
+  test "lex quantifier test" do
     equal("a?", [?a, :zero_one])
     equal("a+", [?a, :one_more])
     equal("a*", [?a, :zero_more])
   end
 
-  test "lex_seq_test" do
+  test "lex seq test" do
     equal("ab", [?a, ?b])
     equal("abcd", [?a, ?b, ?c, ?d])
   end
 
-  test "lex_repeat_test" do
+  test "lex repeat test" do
     equal("{3}", [{:repeat, 3}])
     equal("{34}", [{:repeat, 34}])
 
@@ -41,7 +41,7 @@ defmodule Myrex.LexerTest do
     bad_lex("{-1}")
   end
 
-  test "lex_class_test" do
+  test "lex class test" do
     equal("[", [:begin_class])
     equal("[^", [:begin_class, :neg_class])
     equal("]", [:end_class])
@@ -59,7 +59,7 @@ defmodule Myrex.LexerTest do
     equal("[-]", [:begin_class, :range_to, :end_class])
   end
 
-  test "lex_esc_test" do
+  test "lex esc test" do
     equal("\\*", [?*])
     equal("\\-", [?-])
     equal("\\.", [?.])
@@ -123,6 +123,12 @@ defmodule Myrex.LexerTest do
     bad_lex("\\u123+")
   end
 
+  test "unicode properties" do
+    equal("\\p{Mathematical Operators}", [{:char_block, :pos, :mathematical_operators}])
+    equal("\\p{Lu}", [{:char_category, :pos, :Lu}])
+    equal("\\p{Signwriting}", [{:char_script, :pos, :signwriting}])
+  end
+
   test "lex group test" do
     equal("()", [{:begin_group, 1}, :end_group])
     equal("(ab)", [{:begin_group, 1}, ?a, ?b, :end_group])
@@ -139,7 +145,7 @@ defmodule Myrex.LexerTest do
     bad_lex("(?<~!@#$%^>ab)")
   end
 
-  test "lex_nest_test" do
+  test "lex nest test" do
     equal(
       "((a)((b)(c)))",
       [
@@ -181,7 +187,7 @@ defmodule Myrex.LexerTest do
     )
   end
 
-  test "lex_alt_test" do
+  test "lex alt test" do
     equal("a|b", [?a, :alternate, ?b])
     equal("a|bcd", [?a, :alternate, ?b, ?c, ?d])
     equal("ab|cd", [?a, ?b, :alternate, ?c, ?d])

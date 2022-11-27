@@ -240,11 +240,11 @@ defmodule Myrex.NFA do
   # --------------------------------
 
   @doc "Match a specific character."
-  @spec match_char(char(), boolean()) :: pid()
-  def match_char(char, neg? \\ false) do
-    accept? = inv(fn c -> c == char end, neg?)
+  @spec match_char(char(), T.sign()) :: pid()
+  def match_char(char, ccsign \\ :pos) when is_atom(ccsign) do
+    accept? = inv(fn c -> c == char end, inv_sign(:pos, ccsign))
     # negation turns Match into peek look ahead
-    Match.init(accept?, neg?, caret(char, neg?))
+    Match.init(accept?, peek_sign(ccsign), caret(char, ccsign))
   end
 
   @doc """
@@ -254,37 +254,65 @@ defmodule Myrex.NFA do
   * `true` - any character will match, including newline.
   * `false` - any character will match, excluding newline. 
   """
-
-  @spec match_any_char(boolean(), boolean()) :: pid()
-  def match_any_char(dotall?, neg? \\ false) do
+  @spec match_any_char(boolean(), T.sign()) :: pid()
+  def match_any_char(dotall?, ccsign \\ :pos) when is_atom(ccsign) do
     # anychar wildcard '.' not allowed in negated character class?
-    accept? = inv(fn c -> dotall? or c != ?\n end, neg?)
+    accept? = inv(fn c -> dotall? or c != ?\n end, inv_sign(:pos, ccsign))
     # negation turns Match into peek look ahead
-    Match.init(accept?, neg?, caret(?., neg?))
+    Match.init(accept?, peek_sign(ccsign), caret(?., ccsign))
   end
 
   @doc "Match any character in the range between two characters (inclusive)."
-  @spec match_char_range(T.char_pair(), boolean()) :: pid()
-  def match_char_range({c1, c2} = cr, neg? \\ false) when is_char_range(cr) do
-    accept? = inv(fn c -> c1 <= c and c <= c2 end, neg?)
+  @spec match_char_range(T.char_pair(), T.sign()) :: pid()
+  def match_char_range({c1, c2} = cr, ccsign \\ :pos)
+      when is_char_range(cr) and is_atom(ccsign) do
+    accept? = inv(fn c -> c1 <= c and c <= c2 end, inv_sign(:pos, ccsign))
     # negation turns Match into peek look ahead
-    Match.init(accept?, neg?, caret(c1, c2, neg?))
+    Match.init(accept?, peek_sign(ccsign), caret(c1, c2, ccsign))
   end
 
+  @doc "Match a character to a unicode block, category or script."
+  @spec match_property({atom(), T.sign(), atom()}, T.sign()) :: pid()
+  def match_property({tag, sign, prop}, ccsign \\ :pos) when is_atom(prop) and is_atom(ccsign) do
+    inv? = inv_sign(sign, ccsign)
+
+    accept? =
+      case tag do
+        :char_block -> inv(fn c -> Unicode.block(c) end, inv?)
+        :char_category -> inv(fn c -> Unicode.category(c) == prop end, inv?)
+        :char_script -> inv(fn c -> Unicode.script(c) end, inv?)
+      end
+
+    # negation turns Match into peek look ahead
+    Match.init(accept?, peek_sign(ccsign), "\\\\p{#{Atom.to_string(prop)}}")
+  end
+
+  # convert char class sign and operator sign into an operator inversion flag
+  @spec inv_sign(T.sign(), T.sign()) :: boolean()
+  defp inv_sign(:pos, :pos), do: false
+  defp inv_sign(:neg, :pos), do: true
+  defp inv_sign(:pos, :neg), do: true
+  defp inv_sign(:neg, :neg), do: false
+
+  # convert a char class sign into a peek flag
+  @spec peek_sign(T.sign()) :: boolean()
+  defp peek_sign(:pos), do: false
+  defp peek_sign(:neg), do: true
+
   # optionally invert the acceptor to be NOT the original result
-  @spec inv(T.acceptor(), boolean()) :: T.acceptor()
+  @spec inv(T.acceptor(), T.boolean()) :: T.acceptor()
   defp inv(accept?, false), do: accept?
   defp inv(accept?, true), do: fn c -> not accept?.(c) end
 
   # optionally prefix the label with '^' for negation
 
-  @spec caret(char(), boolean()) :: String.t()
-  defp caret(c, false), do: IO.chardata_to_string(chr(c))
-  defp caret(c, true), do: IO.chardata_to_string([?^ | chr(c)])
+  @spec caret(char(), T.sign()) :: String.t()
+  defp caret(c, :pos), do: IO.chardata_to_string(chr(c))
+  defp caret(c, :neg), do: IO.chardata_to_string([?^ | chr(c)])
 
-  @spec caret(char(), char(), boolean()) :: String.t()
-  defp caret(c1, c2, false), do: IO.chardata_to_string(chrs(c1, c2))
-  defp caret(c1, c2, true), do: IO.chardata_to_string([?^ | chrs(c1, c2)])
+  @spec caret(char(), char(), T.sign()) :: String.t()
+  defp caret(c1, c2, :pos), do: IO.chardata_to_string(chrs(c1, c2))
+  defp caret(c1, c2, :neg), do: IO.chardata_to_string([?^ | chrs(c1, c2)])
 
   defp chrs(c1, c2), do: [chr(c1), ?-, chr(c2)]
 

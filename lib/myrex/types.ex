@@ -167,6 +167,9 @@ defmodule Myrex.Types do
           # compound lexical tokens
           | {:begin_group, :nocap | count1() | String.t()}
           | {:repeat, count2()}
+          | {:char_block, atom()}
+          | {:char_category, atom()}
+          | {:char_script, atom()}
           # postfix parser token
           # to support the parser stack
           | {:alternate, count2()}
@@ -177,6 +180,9 @@ defmodule Myrex.Types do
   # ----------
   # parser AST 
   # ----------
+
+  @typedoc "Sense for character classes and properties."
+  @type sign() :: :neg | :pos
 
   @typedoc """
   A character range token within a character class, 
@@ -194,6 +200,17 @@ defmodule Myrex.Types do
   """
   @type char_range() :: {:char_range, char(), char()}
 
+  @typedoc """
+  A character property AST node that can be standalone leaf node,
+  or within a character class AST node.
+  """
+  @type char_property() :: {:char_block | :char_category | :char_script, sign(), atom()}
+
+  @typedoc """
+  A character class AST node that can be positive or negated.
+  """
+  @type char_class() :: {:char_class, sign(), [char() | char_range() | char_property()]}
+
   # note the reuse of token names as AST node names
   @typep branch_node() ::
            {:sequence, [ast()]}
@@ -203,10 +220,9 @@ defmodule Myrex.Types do
            | {:one_more, ast()}
            | {:zero_more, ast()}
            | {:repeat, count2(), ast()}
-           | {:char_class, [char() | char_range()]}
-           | {:char_class_neg, [char() | char_range()]}
+           | char_class()
 
-  @typep leaf_node() :: char() | :any_char
+  @typep leaf_node() :: char() | :any_char | char_property()
 
   @typedoc "All nodes of the Abstract Syntax Tree (AST)."
   @type ast() :: branch_node() | leaf_node()
