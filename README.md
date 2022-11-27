@@ -41,13 +41,13 @@ failed match does not starve other traversals.
 However, this also means it cannot guarantee the efficient 
 dedicated execution of an exponentially long successful match.
 
-
 ## Features
 
 A simple regular expression processor.
 
 Standard syntax:
 * literal char _c_
+* `\c` escape special character _c_
 * `.` any char
 * `|` alternate choice
 * `?` zero or one 
@@ -62,10 +62,12 @@ Standard syntax:
 * `[^`  begin negated character class
 * `]`  end character class
 * `-`  character range
-* `\` escape character
+* `\p{` _prop_ `}` and `\P{` _prop_ `}` (negated) 
+  Unicode character classes for blocks, categories and scripts
 
 Escapes:
-* `\\C` escaped backslash for special character _C_
+* `\\c` escaped backslash for special character _c_
+* '\\p` and `\\P` escaped backslash for Unicode character classes
 * 2-digit hex character value: 
   literal escape `\xHH` and escaped backslash `\\xHH`
 * 4-digit hex unicode value: 
