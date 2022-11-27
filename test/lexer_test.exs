@@ -76,18 +76,38 @@ defmodule Myrex.LexerTest do
     bad_lex("\\")
   end
 
-  test "lex_hex_test" do
+  test "lex hex test" do
+    # raw literal hex characters
     equal("\x61", [?a])
     equal("\x7A", [?z])
     equal("\x5a", [?Z])
     equal("\x5F", [?_])
     equal("\x2f", [?/])
 
+    # explicitly escaped unicode characters using only ascii 
+    equal("\\x61", [?a])
+    equal("\\x7A", [?z])
+    equal("\\x5a", [?Z])
+    equal("\\x5F", [?_])
+    equal("\\x2f", [?/])
+
     bad_lex("\\xGG")
     bad_lex("\\x+-")
   end
 
-  test "lex_uni_test" do
+  test "lex uni test" do
+    # raw literal unicode characters
+    equal("\u0061", [?a])
+    equal("\u007A", [?z])
+    equal("\u005a", [?Z])
+    equal("\u005F", [?_])
+    equal("\u002f", [?/])
+
+    equal("\u208a", [8330])
+    equal("\u208B", [8331])
+    equal("\u208C", [8332])
+
+    # explicitly escaped unicode characters using only ascii 
     equal("\\u0061", [?a])
     equal("\\u007A", [?z])
     equal("\\u005a", [?Z])

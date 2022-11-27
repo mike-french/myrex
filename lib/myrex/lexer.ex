@@ -69,11 +69,6 @@ defmodule Myrex.Lexer do
   defp re2tok([?} | _], _, _), do: raise(ArgumentError, message: "Unmatched end repeat '}'")
   defp re2tok([c | t], toks, g) when c != ?\\, do: re2tok(t, [c | toks], g)
 
-  # defp re2tok([?\\, ?x, ?{ | t], toks, g) do
-  #   {rest, hex} = hex(t, [])
-  #   re2tok(rest, [hex | toks], g)
-  # end
-
   defp re2tok([?\\, ?x, h1, h2 | t], toks, g) when is_hex(h1) and is_hex(h2) do
     hex = List.to_integer([h1, h2], 16)
     re2tok(t, [hex | toks], g)
@@ -92,13 +87,6 @@ defmodule Myrex.Lexer do
     do: raise(ArgumentError, message: "Expecting escaped character after '\\'")
 
   defp re2tok([], toks, _g), do: Enum.reverse(toks)
-
-  # Read a hex value.
-  # @spec hex(charlist(), charlist()) :: {charlist(), char()}
-  # defp hex([h | t], hex) when is_hex(h), do: hex(t, [h | hex])
-  # defp hex([?} | t], hex), do: {t, hex |> Enum.reverse() |> List.to_integer(16)}
-  # defp hex([c | _], _), do: raise(ArgumentError, message: "Illegal hex character '#{c}'")
-  # defp hex([], _), do: raise(ArgumentError, message: "Unfinished hex value, expecting '}'")
 
   # Read a repeat quantifier.
   @spec repeat(charlist(), charlist()) :: {charlist(), {:repeat, pos_integer()}}

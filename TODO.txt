@@ -1,5 +1,5 @@
 
-* Repeat process node
+* Repeat process node, with stack of iteration counts in the traversal state
 
 * {N,M} repeats, including {N,} syntax for 'or more'
 
@@ -11,14 +11,12 @@
 
 * Process define behaviour? init/postfun, attach, match
 
-* Process runtime monitoring 
+* Process runtime monitoring and assert for create/teardown
   
 * Clarify behaviour of top-level RE as simple char sequence
 
 * Clarify build-time and run-time options
   especially group captures, names, etc.
-
-* Unicode escapes in the RE, with all string conversions
 
 * Performance tests
 

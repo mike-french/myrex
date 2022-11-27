@@ -65,9 +65,11 @@ Standard syntax:
 * `\` escape character
 
 Escapes:
-* `\C` escape special character _C_
-* `\xHH` escape for character value _HH_ with 2 hex digits
-* `\uHHHH` escape for Unicode codepoint _HHHH_ with 4 hex digits
+* `\\C` escaped backslash for special character _C_
+* 2-digit hex character value: 
+  literal escape `\xHH` and escaped backslash `\\xHH`
+* 4-digit hex unicode value: 
+  literal escape `\uHHHH` and escaped backslash `\\uHHHH`
 
 Binary Data:
 * Strings are processed as binaries
