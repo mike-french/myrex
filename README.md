@@ -67,7 +67,7 @@ Standard syntax:
 
 Escapes:
 * `\\c` escaped backslash for special character _c_
-* '\\p` and `\\P` escaped backslash for Unicode character classes
+* `\\p` and `\\P` escaped backslash for Unicode character classes
 * 2-digit hex character value: 
   literal escape `\xHH` and escaped backslash `\\xHH`
 * 4-digit hex unicode value: 
@@ -410,9 +410,9 @@ dot product of two vectors sliced from Pascal's Triangle
 Here are specific examples for `n=3` and `n=4`.
 
 ```
-M(3) =   [1,3,3,1] * [1,3,6,10]     =   1+9+18+10   =  38
+S(3) =   [1,3,3,1] * [1,3,6,10]     =   1+9+18+10   =  38
 
-M(4) = [1,4,6,4,1] * [1,4,10,20,35] = 1+16+60+80+35 = 192
+S(4) = [1,4,6,4,1] * [1,4,10,20,35] = 1+16+60+80+35 = 192
 ```
   
   ![Zero or more](images/pascals-triangle-3-4-small.png)
