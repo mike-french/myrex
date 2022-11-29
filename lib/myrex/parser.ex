@@ -132,6 +132,18 @@ defmodule Myrex.Parser do
     parse(toks, [{:alternate, pre} | post])
   end
 
+  defp parse([{:char_category, sign, :Xan} | toks], stack) do
+    # Xan alphanumeric = Letter or Number 
+    tok = {:alternate, [{:char_category, sign, :L}, {:char_category, sign, :N}]}
+    parse(toks, [tok | stack])
+  end
+
+  defp parse([{:char_category, sign, :Xwd} | toks], stack) do
+    # Xwd word = Letter or Number or '_'
+    tok = {:alternate, [{:char_category, sign, :L}, {:char_category, sign, :N}, ?_]}
+    parse(toks, [tok | stack])
+  end
+
   defp parse([{tag, _sign, _prop} = tok | toks], stack)
        when tag == :char_block or tag == :char_category or tag == :char_script do
     parse(toks, [tok | stack])
@@ -161,6 +173,16 @@ defmodule Myrex.Parser do
     # error???
     IO.puts("Warning: any char wildcard '.' in character class - always passes or ^fails.")
     parse_cc(toks, [:any_char | ccs], sign)
+  end
+
+  defp parse_cc([{:char_category, sign, :Xan} | toks], ccs, sign) do
+    # Xan alphanumeric = Letter or Number 
+    parse_cc(toks, [{:char_category, sign, :L}, {:char_category, sign, :N} | ccs], sign)
+  end
+
+  defp parse_cc([{:char_category, sign, :Xwd} | toks], ccs, sign) do
+    # Xwd word = Letter or Number or '_'
+    parse_cc(toks, [{:char_category, sign, :L}, {:char_category, sign, :N}, ?_ | ccs], sign)
   end
 
   defp parse_cc([{tag, _sign, _prop} = tok | toks], ccs, sign)

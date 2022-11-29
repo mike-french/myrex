@@ -127,6 +127,18 @@ defmodule Myrex.LexerTest do
     equal("\\p{Mathematical Operators}", [{:char_block, :pos, :mathematical_operators}])
     equal("\\p{Lu}", [{:char_category, :pos, :Lu}])
     equal("\\p{Signwriting}", [{:char_script, :pos, :signwriting}])
+
+    # extension classes 
+    equal("\\p{Xan}", [{:char_category, :pos, :Xan}])
+    equal("\\p{Xwd}", [{:char_category, :pos, :Xwd}])
+    equal("\\w", [{:char_category, :pos, :Xwd}])
+    equal("\\W", [{:char_category, :neg, :Xwd}])
+    equal("\\d", [{:char_category, :pos, :Nd}])
+    equal("\\D", [{:char_category, :neg, :Nd}])
+
+    # extension classes not yet directly supported
+    bad_lex("\\p{Xps}")
+    bad_lex("\\p{Xsp}")
   end
 
   test "lex group test" do

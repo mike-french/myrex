@@ -39,21 +39,32 @@ defmodule Myrex.Lexer do
 
   defp re2tok([?\\, c | t], toks, g) when not is_alpha(c), do: re2tok(t, [c | toks], g)
 
+  defp re2tok([?\\, ?a | t], toks, g), do: re2tok(t, [?\a | toks], g)
+  defp re2tok([?\\, ?b | t], toks, g), do: re2tok(t, [?\b | toks], g)
   defp re2tok([?\\, ?e | t], toks, g), do: re2tok(t, [?\e | toks], g)
   defp re2tok([?\\, ?f | t], toks, g), do: re2tok(t, [?\f | toks], g)
   defp re2tok([?\\, ?n | t], toks, g), do: re2tok(t, [?\n | toks], g)
   defp re2tok([?\\, ?r | t], toks, g), do: re2tok(t, [?\r | toks], g)
+  # not a single space, but the char class of whitespace characters
+  # defp re2tok([?\\, ?s | t], toks, g), do: re2tok(t, [?\s | toks], g)
   defp re2tok([?\\, ?t | t], toks, g), do: re2tok(t, [?\t | toks], g)
-  defp re2tok([?\\, ?v | t], toks, g), do: re2tok(t, [?\v | toks], g)
+  # not a single vertical space, but the char class of vertical space characters
+  # defp re2tok([?\\, ?v | t], toks, g), do: re2tok(t, [?\v | toks], g)
+
+  # map escaped char classes to unicode char classes
+  defp re2tok([?\\, ?d | t], toks, g), do: re2tok([?\\, ?p, ?{, ?N, ?d, ?} | t], toks, g)
+  defp re2tok([?\\, ?D | t], toks, g), do: re2tok([?\\, ?P, ?{, ?N, ?d, ?} | t], toks, g)
+  defp re2tok([?\\, ?w | t], toks, g), do: re2tok([?\\, ?p, ?{, ?X, ?w, ?d, ?} | t], toks, g)
+  defp re2tok([?\\, ?W | t], toks, g), do: re2tok([?\\, ?P, ?{, ?X, ?w, ?d, ?} | t], toks, g)
 
   defp re2tok([?\\, ?p, ?{ | t], toks, g) do
-    {tok, rest} = property(t, '', :pos)
-    re2tok(rest, [tok | toks], g)
+    {cctok, rest} = property(t, '', :pos)
+    re2tok(rest, [cctok | toks], g)
   end
 
   defp re2tok([?\\, ?P, ?{ | t], toks, g) do
-    {tok, rest} = property(t, '', :neg)
-    re2tok(rest, [tok | toks], g)
+    {cctok, rest} = property(t, '', :neg)
+    re2tok(rest, [cctok | toks], g)
   end
 
   defp re2tok([?. | t], toks, g), do: re2tok(t, [:any_char | toks], g)
@@ -140,7 +151,7 @@ defmodule Myrex.Lexer do
     do: raise(ArgumentError, message: "Lexer error: group name must be closed with '>'")
 
   # Read the property of a unicode character set
-  @spec property(charlist(), charlist(), T.sign()) :: {{atom(), T.sign(), String.t()}, charlist()}
+  @spec property(charlist(), charlist(), T.sign()) :: {T.char_property(), charlist()}
 
   defp property([?} | _], [], _sign),
     do: raise(ArgumentError, message: "Lexer error: empty property name '{}'")
@@ -149,20 +160,27 @@ defmodule Myrex.Lexer do
     prop_str = cs |> Enum.reverse() |> to_string()
     prop = prop_str |> String.to_atom()
 
-    # categories are short case-sensitive strings, so take them literally
-    if prop in @categories do
-      {{:char_category, sign, prop}, t}
-    else
-      # allow uppercase and spaces in blocks and scripts
-      prop = prop_str |> String.downcase() |> String.replace(" ", "_") |> String.to_atom()
+    cond do
+      # compound extension classes that can only be interpreted by the parser
+      # because it knows the context: inside or outside a char class 
+      prop in [:Xan, :Xwd] ->
+        {{:char_category, sign, prop}, t}
 
-      # HACK ALERT - there are many blocks that are also scripts
-      # match block first to get the broadest definition
-      cond do
-        prop in @blocks -> {{:char_block, sign, prop}, t}
-        prop in @scripts -> {{:char_script, sign, prop}, t}
-        true -> raise ArgumentError, message: "Lexer error: invalid unicode property '#{prop}'"
-      end
+      # categories are short case-sensitive strings, so take them literally
+      prop in @categories ->
+        {{:char_category, sign, prop}, t}
+
+      true ->
+        # allow uppercase and spaces in blocks and scripts
+        prop = prop_str |> String.downcase() |> String.replace(" ", "_") |> String.to_atom()
+
+        # HACK ALERT - there are many blocks that are also scripts
+        # match block first to get the broadest definition
+        cond do
+          prop in @blocks -> {{:char_block, sign, prop}, t}
+          prop in @scripts -> {{:char_script, sign, prop}, t}
+          true -> raise ArgumentError, message: "Lexer error: invalid unicode property '#{prop}'"
+        end
     end
   end
 
@@ -241,12 +259,18 @@ defmodule Myrex.Lexer do
   defp tok2str([a | toks], strs) when is_atom(a),
     do: tok2str(toks, [?\s, Atom.to_charlist(a) | strs])
 
+  defp tok2str([?\a | toks], strs), do: tok2str(toks, [?\\, ?a | strs])
+  defp tok2str([?\b | toks], strs), do: tok2str(toks, [?\\, ?b | strs])
   defp tok2str([?\e | toks], strs), do: tok2str(toks, [?\\, ?e | strs])
   defp tok2str([?\f | toks], strs), do: tok2str(toks, [?\\, ?f | strs])
   defp tok2str([?\n | toks], strs), do: tok2str(toks, [?\\, ?n | strs])
   defp tok2str([?\r | toks], strs), do: tok2str(toks, [?\\, ?r | strs])
+  # defp tok2str([?\s | toks], strs), do: tok2str(toks, [?\\, ?s | strs])
   defp tok2str([?\t | toks], strs), do: tok2str(toks, [?\\, ?t | strs])
-  defp tok2str([?\v | toks], strs), do: tok2str(toks, [?\\, ?v | strs])
+  # defp tok2str([?\v | toks], strs), do: tok2str(toks, [?\\, ?v | strs])
+
+  defp tok2str([c | toks], strs) when is_char(c) and c > 128,
+    do: tok2str(toks, [?\s, ?', ?\\, ?u, Integer.to_charlist(c, 16), ?' | strs])
 
   defp tok2str([c | toks], strs) when is_char(c),
     # TODO - escape unicode chars \uHHHH

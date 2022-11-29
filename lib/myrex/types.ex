@@ -167,9 +167,9 @@ defmodule Myrex.Types do
           # compound lexical tokens
           | {:begin_group, :nocap | count1() | String.t()}
           | {:repeat, count2()}
-          | {:char_block, atom()}
-          | {:char_category, atom()}
-          | {:char_script, atom()}
+          | {:char_block, sign(), atom()}
+          | {:char_category, sign(), atom()}
+          | {:char_script, sign(), atom()}
           # postfix parser token
           # to support the parser stack
           | {:alternate, count2()}

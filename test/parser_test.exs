@@ -217,6 +217,32 @@ defmodule Myrex.ParserTest do
       bad_par("[^]")
     end
 
+    test "par extension classes" do
+      do_par(
+        "[\\p{Xan}]",
+        {:char_class, :pos, [{:char_category, :pos, :L}, {:char_category, :pos, :N}]},
+        false
+      )
+
+      do_par(
+        "[\\P{Xwd}]",
+        {:char_class, :pos, [{:char_category, :neg, :L}, {:char_category, :neg, :N}, ?_]},
+        false
+      )
+
+      do_par(
+        "\\p{Xwd}",
+        {:alternate, [{:char_category, :pos, :L}, {:char_category, :pos, :N}, ?_]},
+        false
+      )
+
+      do_par(
+        "[\\P{Xwd}]",
+        {:char_class, :pos, [{:char_category, :neg, :L}, {:char_category, :neg, :N}, ?_]},
+        false
+      )
+    end
+
     test "par group test" do
       do_par("(a)", {:group, 1, [?a]})
       do_par("(abc)", {:group, 1, [?a, ?b, ?c]})
@@ -266,19 +292,22 @@ defmodule Myrex.ParserTest do
     end
   end
 
-  defp do_par(re, ast) do
+  defp do_par(re, ast, string_roundtrip? \\ true) do
     newline()
     dump(re, label: "RE   ")
     dump(ast, label: "AST  ")
+
     expect = AST.ast2str(ast)
     puts(expect)
+
     toks = Lexer.lex(re)
     dump(toks, label: "TOK  ")
     myast = Parser.parse(toks)
     dump(myast, label: "MYAST")
+
     mystr = AST.ast2str(myast)
     puts(mystr)
-    assert expect == mystr
+    if string_roundtrip?, do: assert(expect == mystr)
   end
 
   defp bad_par(re) do

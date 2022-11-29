@@ -47,7 +47,7 @@ A simple regular expression processor.
 
 Standard syntax:
 * literal char _c_
-* `\c` escape special character _c_
+* `\` escape character (see below)
 * `.` any char
 * `|` alternate choice
 * `?` zero or one 
@@ -62,17 +62,50 @@ Standard syntax:
 * `[^`  begin negated character class
 * `]`  end character class
 * `-`  character range
-* `\p{` _prop_ `}` and `\P{` _prop_ `}` (negated) 
-  Unicode character classes for blocks, categories and scripts
 
-Escapes:
-* `\\c` escaped backslash for special character _c_
-* `\\p` and `\\P` escaped backslash for Unicode character classes
+Elixir escapes - a single backslash in a `String` literal 
+converts the following character(s) to a unicode codepoint:
+* `\c` literal escape for non-printable character _c_
+* `\xHH` 2-digit hex character value 
+* `\uHHHH` 4-digit hex unicode value  
+
+Myrex escapes - a double backslash `\\` in an Elixir `String`
+passes a single backslash `\` to `Myrex`, 
+which uses it to escape the following 
+character or character sequence:
+* `\\c` escaped backslash for non-printable or special character _c,_
+  except for generic character class escapes listed below (d,D,w,W,...).
+* `\\xHH` 2-digit hex character value
+* `\\uHHHH` 4-digit hex unicode value
+* `\\p{` _prop_ `}` and `\\P{` _prop_ `}` (negated): 
+  Unicode character classes for blocks, categories and scripts.
+  Includes extension properties: 
+  * `Xan` alphanumeric: letter `L` and `N` number
+  * `Xwd` word character: alphanumeric and underscore `'_'`
+* Generic escapes:
+  * `\\d` `\\D` (negated): number digit character class,
+  converte to unicode class `Nd`.
+  * `\\w` `\\W` (negated): word character class, 
+  converted to unicode classes `L`, `N` and underscore character `'_'`
+
+Escapes: In Elixir, a single backslash in a `String` literal 
+converts the following character(s) to a unicode codepoint.
+an 
+* literal escape `\c` and `\\c` escaped backslash for special character _c,_
+  except for character class escapes listed below (d,D,s,S,w,W).
 * 2-digit hex character value: 
   literal escape `\xHH` and escaped backslash `\\xHH`
 * 4-digit hex unicode value: 
   literal escape `\uHHHH` and escaped backslash `\\uHHHH`
-
+* `\\p{` _prop_ `}` and `\\P{` _prop_ `}` (negated): 
+  Unicode character classes for blocks, categories and scripts.
+  Includes extension properties: alphanumeric `Xan`; word character `Xwd`.
+* `\\d` `\\D` (negated): numberr digit character class,
+  maps to unicode class `Nd`
+* `\\w` `\\W` (negated): word character class, 
+  maps to unicode classes `L`, `N` and underscore character `'_'`
+* `\\s` `\\S` whitespace character class
+  
 Binary Data:
 * Strings are processed as binaries
   \[[Erlang](https://www.erlang.org/doc/efficiency_guide/binaryhandling.html)\],
