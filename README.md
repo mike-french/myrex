@@ -65,36 +65,28 @@ Standard syntax:
 
 Elixir escapes - a single backslash in a `String` literal 
 converts the following character(s) to a unicode codepoint:
-* `\c` literal escape for non-printable character _c_
-* `\xHH` 2-digit hex character value 
-* `\uHHHH` 4-digit hex unicode value  
+* `\c` literal escape for non-printable character _c._
+* `\xHH` 2-digit hex character value.
+* `\uHHHH` 4-digit hex unicode value.
 
 Myrex escapes - a double backslash `\\` in an Elixir `String`
 passes a single backslash `\` to `Myrex`, 
 which uses it to escape the following 
 character(s):
-* `\\c` escaped backslash for non-printable or special character _c,_
+* `\\c` escaped backslash for non-printable or special character _c._
   except for generic character class escapes listed below (`d`,`D`,`w`,`W`,...).
-* `\\xHH` 2-digit hex character value
-* `\\uHHHH` 4-digit hex unicode value
-* `\\p{` _prop_ `}` and `\\P{` _prop_ `}` (negated): 
-  Unicode character classes for properties: blocks, categories and scripts.
-  Includes extension properties: 
-  * `Xan` alphanumeric: letter `L` and `N` number
-  * `Xwd` word character: letter `L` and `N` number and underscore `'_'`
+* `\\xHH` 2-digit hex character value.
+* `\\uHHHH` 4-digit hex unicode value.
+* `\\p{prop}` and `\\P{prop}` (negated): 
+  Character classes for Unicode _properties_ (blocks, categories, scripts).
+  Includes extension categories: 
+  * `Xan` alphanumeric: combine letter `L` and `N` number categories.
+  * `Xwd` word character: letter `L` and `N` number and underscore `'_'`.
 * Generic escapes:
   * `\\d`, `\\D` (negated): number digit character class,
-  converted to unicode class `Nd`.
+  converted to unicode category `Nd`.
   * `\\w`, `\\W` (negated): word character class, 
-  converted to extension class `Xwd`
-  
-Binary Data:
-* Strings are processed as binaries
-  \[[Erlang](https://www.erlang.org/doc/efficiency_guide/binaryhandling.html)\],
-  not converted to character lists.
-* Short input strings (< 64B) are copied between processes.
-* Large input strings (>=64B) are kept as a single copy,
-  with all processes using references into shared heap memory.
+  converted to extension category `Xwd`
 
 Compile a REGEX into an NFA:
   * Lexical processing of the REGEX to a token sequence.
@@ -106,6 +98,7 @@ Matching an input string against an NFA process network:
   * (Optionally) build the NFA network.
   * Inject a traversal message into the NFA network.
   * Monitor execution of the network.
+  * Receive result or recognize the end of all traversals.
   * (Optionally) tear down the NFA network.
   * Report the result and halt the manager process.
 
@@ -122,6 +115,14 @@ Simple public interface in `Myrex` module:
 * Batch - `compile` and `teardown`
 * Execution - `match` and `search`
 
+Binary Data:
+* Strings are processed as binaries
+  \[[Erlang](https://www.erlang.org/doc/efficiency_guide/binaryhandling.html)\],
+  not converted to character lists.
+* Short input strings (< 64B) are copied between processes.
+* Large input strings (>=64B) are kept as a single copy,
+  with all processes using references into shared heap memory.
+
 Utility to generate diagrams of NFA process networks
 in [GraphViz](https://www.graphviz.org) DOT format
 and convert them to PNG images.
@@ -134,11 +135,14 @@ the fragment matching the group is stored as a _capture._
 The set of all captures is returned as a map of name keys
 to capture values. 
 
-Groups can be explicitly labelled with string names
-using the syntax `(?<name>`....`)`.
-
 Unlabelled groups `(`...`)` are implicitly named with 1-based integers
 based on the position of the opening `(` in the REGEX.
+
+Groups can be explicitly labelled with strings
+using the syntax `(?<name>`....`)`. 
+Labelled groups also get the implied integer name,
+so the result may contain the same capture value
+referenced by both label and number keys.
 
 Groups can be forced to be non-capturing
 using the syntax `(?:`...`.)`.
@@ -391,17 +395,22 @@ and does not tear the network down at the end.
 
 ## Multiple Matches
 
-Some regular expressions are ambiguous and will have multiple matches, 
-For example, the string `a` matches the regex `(a?)(a*)` in 2 different ways,
-and the resulting captures will have different values: `"a",""` and `"","a"`.
+Some regular expressions are ambiguous and 
+may have multiple possible captures for a successful match.
 
-The outcome for ambiguous regexes is usually 
-based on whether the operators are _greedy_ or not. 
+The outcome for ambiguous expressions is usually 
+determined by the operators being _greedy_ or _non-greedy._
 The Myrex implementation has local atomic operators 
 that execute in parallel as an NFA, so they cannot choose 
-`greedy` or `non-greedy` behaviour.
+_greedy_ or _non-greedy_ behaviour.
 
-However, there is an option to choose how multiple matches are handled:
+For example, the string `aa` matches the regex `(a?)(a?)(a*)(a*)` in 8 different ways.
+A _greedy_ sequential algorithm will always capture `"a","a","",""`.
+A _non-greedy_ sequential algorithm will always capture `"","","","aa"`.
+A parallel algorithm that finds all matches will return 8 different 
+sets of captures.
+
+There is an option to choose how multiple matches are handled:
 * _One_ - stop at the first successful match and return the capture.
   If it is a oneshot execution, then teardown the NFA process network.
   If it is a batch execution, then just halt the `Executor` process.
@@ -410,15 +419,17 @@ However, there is an option to choose how multiple matches are handled:
 The _One_ match is non-deterministic - the clue is in the name _*N*_ FA :)
 The match is not necessarily the first in order in the input string,
 it is just the first successful traversal to complete execution.
-
 The actual outcome depends on the Erlang BEAM scheduler.
-If the regular expression is not ambiguous, then the option should be _first,_
-because there may be a long delay to wait for all failure traversals to finish.
 
-For example: let the exponential meta-operator `^` mean repetition
+If the regular expression is not ambiguous, 
+then the option should always be _first,_
+because there may be a long delay to wait for 
+all failure traversals to finish.
+
+Let the exponential meta-operator `^` mean repetition
 of characters and groups in a string.
 So `a^4` for a string means `aaaa` 
-and `(a?)^4` for a regex means `(a?a?a?a?)`.
+and `(a?)^4` for a regex means `(a?)(a?)(a?)(a?)`.
 We will consider a regex of the form `(a?)^n (a*)^n` 
 matching a string of `a^n`
 (a highly ambiguous exaggeration from the example in
@@ -439,8 +450,8 @@ S(4) = [1,4,6,4,1] * [1,4,10,20,35] = 1+16+60+80+35 = 192
   ![Zero or more](images/pascals-triangle-3-4-small.png)
 
 Here is the number of traversals _S(n)_ for each value of _n,_
-and the elapsed time in seconds (s) for _one_ and _all_ matches
-(except for the ~0 timings, which are in microseconds, _us_ ):
+and the elapsed time  for _one_ and _all_ matches in seconds
+(except for the ~0 timings, which are less than 1 microsecond, _us_ ):
 
 ```
 +------+---+---+----+-----+-------+-------+--------+---------+---------+
@@ -453,7 +464,7 @@ and the elapsed time in seconds (s) for _one_ and _all_ matches
 
 ```
 So about 100,000 matches per second when returning all results,
-and 15 ms to return the first match while 864k traversals 
+and 15 ms to return the first match while up to 864k traversals 
 are initiated in parallel.
 
 Results are for Windows running on Intel i7-8550U @ 1.80GHz,
@@ -544,9 +555,17 @@ The currently supported keys and values are:
   can be implicit 1-based integers or explicit label strings for named groups.
 * `:none` - no captures are returned, except the key `0` for the whole string.
 
+Note that `:capture` options are built into the NFA, 
+so batch runtime options can only further restrict the compiled option.
+The compiled option `:all` gives complete freedom to the runtime option.
+The compiled option `:none` means the runtime option will be ignored.
+
 `:return` the type for group capture results:
 * `:index` (default) - the raw `{ position, length }` reference into the input string.
 * `:binary` - the actual substring of the capture.
+
+Note the whole string at capture key 0 is always returned as a string,
+never a reference `{0,length}`. 
 
 `:dotall` (boolean, default `false`) - 
   force the _any character_ wildcard `.` to include newline `\n`.

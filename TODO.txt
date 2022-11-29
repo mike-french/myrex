@@ -2,13 +2,15 @@
 * Repeat process node, with stack of iteration counts in the traversal state
 
 * {N,M} repeats, including {N,} syntax for 'or more'
+  Map existing quantifiers to the new format? {0,1} {0,} {1,} {N,N}
 
-* Short escapes for char classes \d \D \h \H \s \S \v \V \w \W
+* Short escapes for char classes \h \H \s \S \v \V 
   Named char classes [: :]
 
 * Line matching $ ^
 
 * More Elixir Regex (PCRE) options
+  e.g. multiline, newline, CRLF handling
 
 * Process define behaviour? init/postfun, attach, match
 
