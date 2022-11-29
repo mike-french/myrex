@@ -46,17 +46,17 @@ dedicated execution of an exponentially long successful match.
 A simple regular expression processor.
 
 Standard syntax:
-* literal char _c_
+* `c` literal char _c_
 * `\` escape character (see below)
-* `.` any char
+* `.` any character
 * `|` alternate choice
 * `?` zero or one 
 * `+` one or  more
 * `*` zero or more
-* `{` _n_ `}` exactly _n_ repeats
-* `(` begin group
+* `{n}` exactly _n_ repeats
+* `(` begin group with implicit capture
 * `(?:` begin group without capture
-* `(?<name>` begin named group capture
+* `(?<name>` begin group with named capture
 * `)` end  group
 * `[`  begin character class
 * `[^`  begin negated character class
@@ -72,39 +72,21 @@ converts the following character(s) to a unicode codepoint:
 Myrex escapes - a double backslash `\\` in an Elixir `String`
 passes a single backslash `\` to `Myrex`, 
 which uses it to escape the following 
-character or character sequence:
+character(s):
 * `\\c` escaped backslash for non-printable or special character _c,_
-  except for generic character class escapes listed below (d,D,w,W,...).
+  except for generic character class escapes listed below (`d`,`D`,`w`,`W`,...).
 * `\\xHH` 2-digit hex character value
 * `\\uHHHH` 4-digit hex unicode value
 * `\\p{` _prop_ `}` and `\\P{` _prop_ `}` (negated): 
-  Unicode character classes for blocks, categories and scripts.
+  Unicode character classes for properties: blocks, categories and scripts.
   Includes extension properties: 
   * `Xan` alphanumeric: letter `L` and `N` number
-  * `Xwd` word character: alphanumeric and underscore `'_'`
+  * `Xwd` word character: letter `L` and `N` number and underscore `'_'`
 * Generic escapes:
-  * `\\d` `\\D` (negated): number digit character class,
-  converte to unicode class `Nd`.
-  * `\\w` `\\W` (negated): word character class, 
-  converted to unicode classes `L`, `N` and underscore character `'_'`
-
-Escapes: In Elixir, a single backslash in a `String` literal 
-converts the following character(s) to a unicode codepoint.
-an 
-* literal escape `\c` and `\\c` escaped backslash for special character _c,_
-  except for character class escapes listed below (d,D,s,S,w,W).
-* 2-digit hex character value: 
-  literal escape `\xHH` and escaped backslash `\\xHH`
-* 4-digit hex unicode value: 
-  literal escape `\uHHHH` and escaped backslash `\\uHHHH`
-* `\\p{` _prop_ `}` and `\\P{` _prop_ `}` (negated): 
-  Unicode character classes for blocks, categories and scripts.
-  Includes extension properties: alphanumeric `Xan`; word character `Xwd`.
-* `\\d` `\\D` (negated): numberr digit character class,
-  maps to unicode class `Nd`
-* `\\w` `\\W` (negated): word character class, 
-  maps to unicode classes `L`, `N` and underscore character `'_'`
-* `\\s` `\\S` whitespace character class
+  * `\\d`, `\\D` (negated): number digit character class,
+  converted to unicode class `Nd`.
+  * `\\w`, `\\W` (negated): word character class, 
+  converted to extension class `Xwd`
   
 Binary Data:
 * Strings are processed as binaries
@@ -114,15 +96,21 @@ Binary Data:
 * Large input strings (>=64B) are kept as a single copy,
   with all processes using references into shared heap memory.
 
-Stages of processing:
-* Compiling a REGEX into an NFA:
+Compile a REGEX into an NFA:
   * Lexical processing of the REGEX to a token sequence.
-  * Parsing the tokens into an AST.
-  * Traversing the AST to build an NFA process network.
-* Matching an input string against an NFA process network.
+  * Parse the tokens into an AST.
+  * Traverse the AST to build an NFA process network.
+
+Matching an input string against an NFA process network:
+  * Launch an execution manager process.
+  * (Optionally) build the NFA network.
+  * Inject a traversal message into the NFA network.
+  * Monitor execution of the network.
+  * (Optionally) tear down the NFA network.
+  * Report the result and halt the manager process.
 
 Two execution patterns:
-* Batch - single network that process multiple input strings simultaneously.
+* Batch - single network processes multiple input strings simultaneously.
 * Oneshot - dedicated independent network is built and torn down for each input. 
 
 Two traversal strategies for ambiguous matches:
