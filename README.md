@@ -63,35 +63,6 @@ Standard syntax:
 * `]`  end character class
 * `-`  character range
 
-Elixir escapes - a single backslash in a `String` literal 
-converts the following character(s) to a unicode codepoint:
-* `\c` literal escape for space or non-printable character.
-* `\xHH` 2-digit hex character value.
-* `\uHHHH` 4-digit hex unicode value.
-
-Myrex escapes - a double backslash `\\` in an Elixir `String`
-passes a single backslash `\` to `Myrex`, 
-which uses it to escape the following 
-character(s):
-* `\\c` escaped backslash for non-printable or special character _c,_
-  except for generic character class escapes listed below (`d`,`D`,`w`,`W`, ...).
-* `\\xHH` 2-digit hex character value.
-* `\\uHHHH` 4-digit hex unicode value.
-* `\\p{prop}` and `\\P{prop}` (negated): 
-  Character classes for Unicode _properties_ (blocks, categories, scripts).
-  Includes extension categories: 
-  * `Xan` alphanumeric: combine letter `L` and `N` number categories.
-  * `Xsp` whitespace: separator `Z` category or `\f', `\n`, `\t`, `\r`, `\v`.
-  * `Xwd` word character: letter `L` and `N` number and underscore `'_'`.
-* Generic escapes:
-  * `\\d`, `\\D` (negated): number digit character class,
-    converted to unicode category `Nd`.
-  * `\\s`, `\\S` (negated): whitespace character class, 
-    converted to extension category `Xsp`.
-    Note this is not just the literal escape `\s` for space U+0020.
-  * `\\w`, `\\W` (negated): word character class, 
-  converted to extension category `Xwd`.
-
 Compile a REGEX into an NFA:
   * Lexical processing of the REGEX to a token sequence.
   * Parse the tokens into an AST.
@@ -159,6 +130,37 @@ Capture values can be represented in two ways:
 
 Processing of captures for a successful result
 is controlled by the `:capture` and `:return` options (see below).
+
+### Escapes
+
+Elixir escapes - a single backslash in a `String` literal 
+converts the following character(s) to a unicode codepoint:
+* `\c` literal escape for space or non-printable character.
+* `\xHH` 2-digit hex character value.
+* `\uHHHH` 4-digit hex unicode value.
+
+Myrex escapes - a double backslash `\\` in an Elixir `String`
+passes a single backslash `\` to `Myrex`, 
+which uses it to escape the following 
+character(s):
+* `\\c` escaped backslash for non-printable or special character _c,_
+  except for generic character class escapes listed below (`d`,`D`,`w`,`W`, ...).
+* `\\xHH` 2-digit hex character value.
+* `\\uHHHH` 4-digit hex unicode value.
+* `\\p{prop}` and `\\P{prop}` (negated): 
+  Character classes for Unicode _properties_ (blocks, categories \[[Wikipedia](https://en.wikipedia.org/wiki/Unicode_character_property#General_Category)\], scripts).
+  Includes extension categories: 
+  * `Xan` alphanumeric: combine letter `L` or `N` number categories.
+  * `Xsp` whitespace: separator `Z` category or `\f`, `\n`, `\t`, `\r`, `\v`.
+  * `Xwd` word character: letter `L` or `N` number or underscore `'_'`.
+* Generic escapes:
+  * `\\d`, `\\D` (negated): number digit character class,
+    converted to unicode category `Nd`.
+  * `\\s`, `\\S` (negated): whitespace character class, 
+    converted to extension category `Xsp`.
+    Note this is not just the literal escape `\s` for space U+0020.
+  * `\\w`, `\\W` (negated): word character class, 
+  converted to extension category `Xwd`.
 
 ## NFA Design
 
