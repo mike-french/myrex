@@ -9,14 +9,14 @@ The implementation is based on the idea of _Process Oriented Programming:_
 * Processes communicate asynchronously by passing messages. 
 * Process networks naturally run in parallel.
 
-The REGEX is converted to an Abstract Syntax Tree (AST)
+The REGEX is converted to an _Abstract Syntax Tree_ (AST)
 using a variation of the _Shunting Yard_ parsing algorithm
 \[[Wikipedia](https://en.wikipedia.org/wiki/Shunting_yard_algorithm)\].
 
-
-The AST is used to build a Non-deterministic Finite Automaton (NFA)
-using a variation of _Thomson's Algorithm_
-\[[Wikipedia](https://en.wikipedia.org/wiki/Thompson%27s_construction)\].
+The AST is used to build a _Non-deterministic Finite Automaton_ (NFA)
+using a variation of _Thompson's Algorithm_
+\[[Wikipedia](https://en.wikipedia.org/wiki/Thompson%27s_construction)\]
+\[[Cox](https://swtch.com/~rsc/regexp/regexp1.html)\].
 
 The NFA is executed directly by propagating messages through the network.
 
@@ -65,7 +65,7 @@ Standard syntax:
 
 Elixir escapes - a single backslash in a `String` literal 
 converts the following character(s) to a unicode codepoint:
-* `\c` literal escape for non-printable character _c._
+* `\c` literal escape for space or non-printable character.
 * `\xHH` 2-digit hex character value.
 * `\uHHHH` 4-digit hex unicode value.
 
@@ -73,8 +73,8 @@ Myrex escapes - a double backslash `\\` in an Elixir `String`
 passes a single backslash `\` to `Myrex`, 
 which uses it to escape the following 
 character(s):
-* `\\c` escaped backslash for non-printable or special character _c._
-  except for generic character class escapes listed below (`d`,`D`,`w`,`W`,...).
+* `\\c` escaped backslash for non-printable or special character _c,_
+  except for generic character class escapes listed below (`d`,`D`,`w`,`W`, ...).
 * `\\xHH` 2-digit hex character value.
 * `\\uHHHH` 4-digit hex unicode value.
 * `\\p{prop}` and `\\P{prop}` (negated): 
@@ -86,14 +86,14 @@ character(s):
   * `\\d`, `\\D` (negated): number digit character class,
   converted to unicode category `Nd`.
   * `\\w`, `\\W` (negated): word character class, 
-  converted to extension category `Xwd`
+  converted to extension category `Xwd`.
 
 Compile a REGEX into an NFA:
   * Lexical processing of the REGEX to a token sequence.
   * Parse the tokens into an AST.
   * Traverse the AST to build an NFA process network.
 
-Matching an input string against an NFA process network:
+Matching an input string against a REGEX:
   * Launch an execution manager process.
   * (Optionally) build the NFA network.
   * Inject a traversal message into the NFA network.
@@ -116,7 +116,7 @@ Simple public interface in `Myrex` module:
 * Execution - `match` and `search`
 
 Binary Data:
-* Strings are processed as binaries
+* Strings are processed as UTF-8 binaries
   \[[Erlang](https://www.erlang.org/doc/efficiency_guide/binaryhandling.html)\],
   not converted to character lists.
 * Short input strings (< 64B) are copied between processes.
@@ -136,7 +136,7 @@ The set of all captures is returned as a map of name keys
 to capture values. 
 
 Unlabelled groups `(`...`)` are implicitly named with 1-based integers
-based on the position of the opening `(` in the REGEX.
+based on the order of the opening `(` in the REGEX.
 
 Groups can be explicitly labelled with strings
 using the syntax `(?<name>`....`)`. 
@@ -150,7 +150,7 @@ using the syntax `(?:`...`.)`.
 The 0 capture key always refers to the whole input string.
 
 Capture values can be represented in two ways:
-* The `{position, length}` reference into the input string.
+* Integer `{position, length}` reference into the input string.
 * The actual substring (binary) matched by the group.
 
 Processing of captures for a successful result
@@ -179,22 +179,23 @@ grounded in atomic character matchers
 A traversal is a sequence of 
 messages that propagates through the network.
 
-An input string is injected as a message into the `Start` node 
+An input string is injected as a message into the `Start` input node 
 of the process network.  
 Each traversal continues until it fails to match,
-or reaches the final `Success` node.
+or reaches the final `Success` output node.
 
-There are multiple traversals propagating 
-concurrently within the network.
+Multiple traversals propagate concurrently within the network.
 An ambiguous regular expression may match an input string in multiple ways,
 which means that mutiple traversals may reach the `Success` node.
 
 The progress of each traversal depends on the 
-Erlang BEAM scheduler, and the behaviour appears 
-to be non-deterministic from an outside point of view.
+Erlang BEAM scheduler. The behaviour appears 
+to be non-deterministic from an outside point of view,
+but can be made repeatable by running with 
+the same random number generator seed.
 
-The active traversals can be from different input strings,
-as all matching state is maintained in the messages, 
+Multiple input strings can have concurrent active traversals.
+All matching state is maintained in the messages, 
 not in the nodes, and there is no globally accessible state.
 
 Each message contains the traversal state for the match:
@@ -214,10 +215,10 @@ to implement parts of the AST as process subgraphs:
   across 2 or more downstream subgraphs.
 * Groups use `BeginGroup` and `EndGroup` to record captures.
 * Negated character classes use `EndAnd` to 
-  advance the input after a sequence of peek matches.
+  advance the input after a sequence of peek lookahead matches.
 * Leaf nodes use `Match` with an _acceptor_ function
   to do the actual matching of individual characters, 
-  character ranges and character classes.
+  character ranges and character properties.
   
 #### Sequence and Group
 
@@ -243,12 +244,12 @@ in --->|Begin|--->| P1 |---> ... --->| Pn |--->| End |---> out
   The `BeginGroup` and `EndGroup` are labelled with `(` and `)`.
 
  Combinator for an AND sequence of peek lookahead 
- matching nodes  `M1 M2 .. Mn`:
+ matching nodes  `M1 M2 .. Mn`.
  The peeking nodes are created in a negated character class,
  where all tests must pass for the first character of input,
- but the character must not be consumed. 
+ but the character is not consumed. 
  At the end of the sequence, when all matches have passed,
- the character must be consumed from input.
+ the character is consumed from input.
 
   ```
           +--+             +--+    +-----+
@@ -287,7 +288,7 @@ with `Split` process _S_ :
   The `Split` node for alternate choice is labelled with `|`.
 
 Character classes `[...]` are implemented as alternate choices
-for all the enclosed characters and character ranges.
+for all the enclosed characters, character ranges and character properties.
 
   Example for REGEX `[a-dZ]`:
   
@@ -377,13 +378,13 @@ The process network has a lifecycle based on _batch_ or _oneshot_ patterns.
 
 The matching of individual input strings is managed by a 
 transient `Executor` process instance.
-An `Executor` is created for each input string, 
+An `Executor` is created for each input string 
 and exits when the matching process completes.  
 
 The `Executor` passes the input string to the `Start` process,
 monitors the number of active traversals, 
 receives notification of failed matches,
-and may get a successful match result from the `Success` process.
+and gets zero or more successful match results from the `Success` process.
 The `Executor` exits after the result is returned to the calling client.
 
 A _oneshot_ `Executor` builds a private NFA process network,
@@ -422,7 +423,7 @@ it is just the first successful traversal to complete execution.
 The actual outcome depends on the Erlang BEAM scheduler.
 
 If the regular expression is not ambiguous, 
-then the option should always be _first,_
+then the option should always be _one,_
 because there may be a long delay to wait for 
 all failure traversals to finish.
 
@@ -450,8 +451,8 @@ S(4) = [1,4,6,4,1] * [1,4,10,20,35] = 1+16+60+80+35 = 192
   ![Zero or more](images/pascals-triangle-3-4-small.png)
 
 Here is the number of traversals _S(n)_ for each value of _n,_
-and the elapsed time  for _one_ and _all_ matches in seconds
-(except for the ~0 timings, which are less than 1 microsecond, _us_ ):
+and the elapsed time  for _one_ and _all_ matches in seconds, 
+except for the ~0 timings, which are less than 1 microsecond _(us)_ :
 
 ```
 +------+---+---+----+-----+-------+-------+--------+---------+---------+
@@ -478,10 +479,10 @@ Erlang/OTP 23 [erts-11.1] [source] [64-bit] [smp:8:8] [ds:8:8:10] [async-threads
 
 There are two ways the REGEX can be applied to the input: 
 * `match` - an exact match of the REGEX with the whole input string.
-* `search` - find a partial match of the REGEX somewhere within the input string.
+* `search` - find partial matches of the REGEX somewhere within the input string.
 
 The `Myrex` top-level module has separate interface 
-functions for _match()_ and _search()._
+functions for _match( )_ and _search( )._
 
 The mode applies to both batch and oneshot network lifecycles. 
 The default behaviour of an NFA is _match_ mode. 
@@ -489,14 +490,19 @@ The default behaviour of an NFA is _match_ mode.
 For a oneshot _search,_ the REGEX is just wrapped 
 with a `'.*'` prefix and suffix, then an NFA is created
 for the new expression.
+Note that the new REGEX will capture _all_ matches of the 
+original REGEX inside the input string, 
+because the wildcards can consume a matching substring.
+There is no need to
+restart the matching process. 
 
 A batch _search_ is more difficult, because the existing NFA
 cannot be modified (it may be running concurrent match traversals).
 A _search_ `Executor` builds a `'.*'` 
 prefix subgraph and connects the output to the `Start` node of the main NFA.
 The `Executor` then listens for partial match messages 
-from the existing `Success` node, and redirects the results
-as new traversals of the augmented NFA network. 
+from the existing `Success` node, and redirects results
+as new traversals of the prefixed NFA network. 
 The search `Executor` tears down the transient prefix subgraph
 at the end of execution, but the main NFA is not changed.
 
@@ -540,6 +546,7 @@ nfa = Myrex.compile("(ab)|(cd)")
 :teardown = Myrex.teardown(nfa)
 
 ```
+The ignored output value `'_'` contains the detaild capture results.
 
 ### Options
 
@@ -547,18 +554,22 @@ Options are passed as `Keyword` pairs.
 
 The currently supported keys and values are:
 
+#### capture
+
 `:capture` the values to return in match results:
 * `:all` (default) - all captures are returned, 
   except those explicitly excluded using `(?:...)` anonymous group syntax.
-* `:named` - only groups explicitly labelled with a capture label.
+* `:named` - only groups explicitly named with a capture label.
 * _names_ - a list of names to return a capture value, where _names_ 
   can be implicit 1-based integers or explicit label strings for named groups.
 * `:none` - no captures are returned, except the key `0` for the whole string.
 
-Note that `:capture` options are built into the NFA, 
+Note that `:capture` options are compiled into the NFA, 
 so batch runtime options can only further restrict the compiled option.
 The compiled option `:all` gives complete freedom to the runtime option.
 The compiled option `:none` means the runtime option will be ignored.
+
+#### return
 
 `:return` the type for group capture results:
 * `:index` (default) - the raw `{ position, length }` reference into the input string.
@@ -567,12 +578,20 @@ The compiled option `:none` means the runtime option will be ignored.
 Note the whole string at capture key 0 is always returned as a string,
 never a reference `{0,length}`. 
 
+#### dotall
+
 `:dotall` (boolean, default `false`) - 
   force the _any character_ wildcard `.` to include newline `\n`.
   
+#### timeout
+
 `:timeout` (integer, default 1000ms) - the timeout (ms) for executing a string match.
 
+#### offset
+
 `:offset` (integer, default 0) - the 0-based offset for the initial position in the string
+
+#### multiple
 
 `:multiple` decide behviour when the regular expression is ambiguous:
 * `:one` (default) - stop at the first successful match, return the capture.
@@ -580,6 +599,7 @@ never a reference `{0,length}`.
   If it is a batch execution, then just halt the `Executor` process.
 * `:all` - wait for all traversals to complete and return all possible captures.
 
+#### graph_name
 `:graph_name` - a flag or filename for DOT and PNG graph diagram output:
 * `nil` (default) - no graph output.
 * `:re` - use the REGEX as the filename, with suitable escaping and truncation.
