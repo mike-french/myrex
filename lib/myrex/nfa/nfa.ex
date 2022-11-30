@@ -278,14 +278,20 @@ defmodule Myrex.NFA do
 
     accept? =
       case tag do
-        :char_block -> inv(fn c -> Unicode.block(c) end, inv?)
-        :char_category -> inv(fn c -> Unicode.category(c) == prop end, inv?)
-        :char_script -> inv(fn c -> Unicode.script(c) end, inv?)
+        :char_block -> inv(fn c -> Unicode.block(c) == prop end, inv?)
+        :char_category -> inv(fn c -> subcat?(Unicode.category(c), prop) end, inv?)
+        :char_script -> inv(fn c -> Unicode.script(c) == prop end, inv?)
       end
 
     # negation turns Match into peek look ahead
     Match.init(accept?, peek_sign(ccsign), "\\\\p{#{Atom.to_string(prop)}}")
   end
+
+  # test atom to be equal or prefix of another atom
+  # implements subset relation for categories, e.g. :Lu < :L
+  @spec subcat?(atom(), atom()) :: boolean()
+  defp subcat?(cat, cat), do: true
+  defp subcat?(sub, cat), do: String.starts_with?(Atom.to_string(sub), Atom.to_string(cat))
 
   # convert char class sign and operator sign into an operator inversion flag
   @spec inv_sign(T.sign(), T.sign()) :: boolean()

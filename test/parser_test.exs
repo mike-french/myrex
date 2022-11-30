@@ -237,8 +237,8 @@ defmodule Myrex.ParserTest do
       )
 
       do_par(
-        "[\\P{Xwd}]",
-        {:char_class, :pos, [{:char_category, :neg, :L}, {:char_category, :neg, :N}, ?_]},
+        "\\P{Xsp}",
+        {:alternate, [{:char_category, :neg, :Z}, ?\t, ?\n, ?\v, ?\f, ?\r]},
         false
       )
     end

@@ -127,7 +127,7 @@ defmodule Myrex.Executor do
         execute(n - 1, client, nfa, timeout, multi, result_type)
 
       success when is_tuple(success) ->
-        # match success at end of input
+        # success at end of input
         notify_result(client, success)
 
         # for a one-shot execution, with all NFA processes linked to this one

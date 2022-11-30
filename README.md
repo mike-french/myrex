@@ -81,10 +81,14 @@ character(s):
   Character classes for Unicode _properties_ (blocks, categories, scripts).
   Includes extension categories: 
   * `Xan` alphanumeric: combine letter `L` and `N` number categories.
+  * `Xsp` whitespace: separator `Z` category or `\f', `\n`, `\t`, `\r`, `\v`.
   * `Xwd` word character: letter `L` and `N` number and underscore `'_'`.
 * Generic escapes:
   * `\\d`, `\\D` (negated): number digit character class,
-  converted to unicode category `Nd`.
+    converted to unicode category `Nd`.
+  * `\\s`, `\\S` (negated): whitespace character class, 
+    converted to extension category `Xsp`.
+    Note this is not just the literal escape `\s` for space U+0020.
   * `\\w`, `\\W` (negated): word character class, 
   converted to extension category `Xwd`.
 

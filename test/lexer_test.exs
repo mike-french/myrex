@@ -130,15 +130,17 @@ defmodule Myrex.LexerTest do
 
     # extension classes 
     equal("\\p{Xan}", [{:char_category, :pos, :Xan}])
+    equal("\\p{Xsp}", [{:char_category, :pos, :Xsp}])
     equal("\\p{Xwd}", [{:char_category, :pos, :Xwd}])
     equal("\\w", [{:char_category, :pos, :Xwd}])
     equal("\\W", [{:char_category, :neg, :Xwd}])
+    equal("\\s", [{:char_category, :pos, :Xsp}])
+    equal("\\S", [{:char_category, :neg, :Xsp}])
     equal("\\d", [{:char_category, :pos, :Nd}])
     equal("\\D", [{:char_category, :neg, :Nd}])
 
-    # extension classes not yet directly supported
     bad_lex("\\p{Xps}")
-    bad_lex("\\p{Xsp}")
+    bad_lex("\\p{Foo}")
   end
 
   test "lex group test" do

@@ -20,6 +20,8 @@ defmodule Myrex.Parser do
   import Myrex.Types
   alias Myrex.Types, as: T
 
+  alias Myrex.Lexer
+
   @spec parse(T.tokens()) :: T.root()
   def parse(toks) do
     postf = postf(toks, [:begin_sequence], 0, [])
@@ -134,14 +136,20 @@ defmodule Myrex.Parser do
 
   defp parse([{:char_category, sign, :Xan} | toks], stack) do
     # Xan alphanumeric = Letter or Number 
-    tok = {:alternate, [{:char_category, sign, :L}, {:char_category, sign, :N}]}
-    parse(toks, [tok | stack])
+    cc = {:char_class, sign, [{:char_category, :pos, :L}, {:char_category, :pos, :N}]}
+    parse(toks, [cc | stack])
+  end
+
+  defp parse([{:char_category, sign, :Xsp} | toks], stack) do
+    # Xsp whitespace = Separator Z, htab, newline, vtab, form feed, carriage return
+    cc = {:char_class, sign, [{:char_category, :pos, :Z}, ?\t, ?\n, ?\v, ?\f, ?\r]}
+    parse(toks, [cc | stack])
   end
 
   defp parse([{:char_category, sign, :Xwd} | toks], stack) do
     # Xwd word = Letter or Number or '_'
-    tok = {:alternate, [{:char_category, sign, :L}, {:char_category, sign, :N}, ?_]}
-    parse(toks, [tok | stack])
+    cc = {:char_class, sign, [{:char_category, :pos, :L}, {:char_category, :pos, :N}, ?_]}
+    parse(toks, [cc | stack])
   end
 
   defp parse([{tag, _sign, _prop} = tok | toks], stack)
@@ -156,51 +164,59 @@ defmodule Myrex.Parser do
   defp parse([], nodes) when is_list(nodes), do: {:sequence, Enum.reverse(nodes)}
 
   # e.g. postf quantifier without target, like "+?*"
-  defp parse([_ | _], _), do: raise(ArgumentError, message: "Parse error: illegal expression")
+  defp parse(toks, _),
+    do: raise(ArgumentError, message: "Parse error: illegal expression '#{Lexer.tok2str(toks)}'")
 
   # special restricted parser within character class
   @spec parse_cc(T.tokens(), [char() | T.char_pair() | T.char_property()], T.sign()) ::
           {T.tokens(), T.char_class()}
 
-  defp parse_cc([c1, :range_to, c2 | toks], ccs, sign) when is_char(c1) and is_char(c2) do
+  defp parse_cc([c1, :range_to, c2 | toks], ccs, ccsign) when is_char(c1) and is_char(c2) do
     if c1 >= c2, do: raise(ArgumentError, message: "Parse error: illegal char range")
-    parse_cc(toks, [{:char_range, c1, c2} | ccs], sign)
+    parse_cc(toks, [{:char_range, c1, c2} | ccs], ccsign)
   end
 
-  defp parse_cc([c | toks], ccs, sign) when is_char(c), do: parse_cc(toks, [c | ccs], sign)
+  defp parse_cc([c | toks], ccs, ccsign) when is_char(c), do: parse_cc(toks, [c | ccs], ccsign)
 
-  defp parse_cc([:any_char | toks], ccs, sign) do
+  defp parse_cc([:any_char | toks], ccs, ccsign) do
     # error???
     IO.puts("Warning: any char wildcard '.' in character class - always passes or ^fails.")
-    parse_cc(toks, [:any_char | ccs], sign)
+    parse_cc(toks, [:any_char | ccs], ccsign)
   end
 
-  defp parse_cc([{:char_category, sign, :Xan} | toks], ccs, sign) do
+  defp parse_cc([{:char_category, sign, :Xan} | toks], ccs, ccsign) do
     # Xan alphanumeric = Letter or Number 
-    parse_cc(toks, [{:char_category, sign, :L}, {:char_category, sign, :N} | ccs], sign)
+    parse_cc(toks, [{:char_category, sign, :L}, {:char_category, sign, :N} | ccs], ccsign)
   end
 
-  defp parse_cc([{:char_category, sign, :Xwd} | toks], ccs, sign) do
+  # BUG ALERT - CC NEGATED CATEGORY \P DOES NOT WORK WITH SPECIFIC CHARS 
+
+  defp parse_cc([{:char_category, sign, :Xsp} | toks], ccs, ccsign) do
+    # Xsp whitespace = Separator Z, htab, newline, vtab, form feed, carriage return
+    parse_cc(toks, [{:char_category, sign, :Z}, ?\t, ?\n, ?\v, ?\f, ?\r | ccs], ccsign)
+  end
+
+  defp parse_cc([{:char_category, sign, :Xwd} | toks], ccs, ccsign) do
     # Xwd word = Letter or Number or '_'
-    parse_cc(toks, [{:char_category, sign, :L}, {:char_category, sign, :N}, ?_ | ccs], sign)
+    parse_cc(toks, [{:char_category, sign, :L}, {:char_category, sign, :N}, ?_ | ccs], ccsign)
   end
 
-  defp parse_cc([{tag, _sign, _prop} = tok | toks], ccs, sign)
+  defp parse_cc([{tag, _sign, _prop} = tok | toks], ccs, ccsign)
        when tag == :char_block or tag == :char_category or tag == :char_script do
-    parse_cc(toks, [tok | ccs], sign)
+    parse_cc(toks, [tok | ccs], ccsign)
   end
 
-  defp parse_cc([:begin_class | _], _, _sign),
+  defp parse_cc([:begin_class | _], _, _),
     do: raise(ArgumentError, message: "Parse error: unescaped '[' in character class")
 
-  defp parse_cc([:neg_class | _], _, _sign),
+  defp parse_cc([:neg_class | _], _, _),
     do: raise(ArgumentError, message: "Parse error: unescaped '^' in character class")
 
-  defp parse_cc([:end_class | _], [], _sign),
+  defp parse_cc([:end_class | _], [], _),
     do: raise(ArgumentError, message: "Parse error: '[]' empty character class")
 
-  defp parse_cc([:end_class | toks], ccs, sign),
-    do: {toks, {:char_class, sign, Enum.reverse(ccs)}}
+  defp parse_cc([:end_class | toks], ccs, ccsign),
+    do: {toks, {:char_class, ccsign, Enum.reverse(ccs)}}
 
   defp parse_cc([_ | _], _, _),
     do: raise(ArgumentError, message: "Parse error: illegal char class")

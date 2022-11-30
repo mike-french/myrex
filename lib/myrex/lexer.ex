@@ -54,6 +54,8 @@ defmodule Myrex.Lexer do
   # map escaped char classes to unicode char classes
   defp re2tok([?\\, ?d | t], toks, g), do: re2tok([?\\, ?p, ?{, ?N, ?d, ?} | t], toks, g)
   defp re2tok([?\\, ?D | t], toks, g), do: re2tok([?\\, ?P, ?{, ?N, ?d, ?} | t], toks, g)
+  defp re2tok([?\\, ?s | t], toks, g), do: re2tok([?\\, ?p, ?{, ?X, ?s, ?p, ?} | t], toks, g)
+  defp re2tok([?\\, ?S | t], toks, g), do: re2tok([?\\, ?P, ?{, ?X, ?s, ?p, ?} | t], toks, g)
   defp re2tok([?\\, ?w | t], toks, g), do: re2tok([?\\, ?p, ?{, ?X, ?w, ?d, ?} | t], toks, g)
   defp re2tok([?\\, ?W | t], toks, g), do: re2tok([?\\, ?P, ?{, ?X, ?w, ?d, ?} | t], toks, g)
 
@@ -163,7 +165,7 @@ defmodule Myrex.Lexer do
     cond do
       # compound extension classes that can only be interpreted by the parser
       # because it knows the context: inside or outside a char class 
-      prop in [:Xan, :Xwd] ->
+      prop in [:Xan, :Xsp, :Xwd] ->
         {{:char_category, sign, prop}, t}
 
       # categories are short case-sensitive strings, so take them literally
@@ -225,7 +227,8 @@ defmodule Myrex.Lexer do
 
   defp tok2re([], re), do: re |> Enum.reverse() |> to_string()
 
-  defp tok2re([_ | _], _), do: raise(ArgumentError, message: "Unexpected lexical element")
+  defp tok2re([tok | _], _),
+    do: raise(ArgumentError, message: "Unexpected lexical element #{inspect(tok)}")
 
   # Convert a token atom to a character.
   @spec chr(T.token() | :begin_group) :: char() | String.t()

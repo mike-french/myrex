@@ -176,6 +176,77 @@ defmodule Myrex.MyrexTest do
       Myrex.teardown(re_nfa)
     end
 
+    test "unicode extension property test #{mode}" do
+      exec(:match, "\\p{L}+", "Foo", :match)
+      exec(:match, "\\p{N}+", "42", :match)
+      exec(:match, "(?:\\p{L}|\\p{N})+", "42Foo", :match)
+
+      re = "\\p{Xan}+"
+      re_nfa = build(re, unquote(mode))
+
+      exec(:match, re_nfa, "42Foo", :match)
+      exec(:match, re_nfa, "Bar99", :match)
+
+      exec(:match, re_nfa, "_", :no_match)
+      exec(:match, re_nfa, "$", :no_match)
+      exec(:match, re_nfa, "\t", :no_match)
+      exec(:match, re_nfa, " ", :no_match)
+
+      Myrex.teardown(re_nfa)
+
+      re = "\\p{Xwd}+"
+      re_nfa = build(re, unquote(mode))
+
+      exec(:match, re_nfa, "Ab_17", :match)
+      exec(:match, re_nfa, "31Z_a", :match)
+
+      exec(:match, re_nfa, "$", :no_match)
+      exec(:match, re_nfa, "\t", :no_match)
+      exec(:match, re_nfa, " ", :no_match)
+
+      Myrex.teardown(re_nfa)
+
+      re = "[\\p{Xsp}]+"
+      re_nfa = build(re, unquote(mode))
+
+      exec(:match, re_nfa, " \s\t\n\v\f\r", :match)
+      # nbsp, line sep, para sep, em space
+      exec(:match, re_nfa, "\u00A0\u2028\u2029\u2003", :match)
+
+      exec(:match, re_nfa, "$", :no_match)
+      exec(:match, re_nfa, "a", :no_match)
+      exec(:match, re_nfa, "_", :no_match)
+
+      Myrex.teardown(re_nfa)
+
+      re = "\\P{Xwd}+"
+      re_nfa = build(re, unquote(mode))
+
+      exec(:match, re_nfa, "$\t ", :match)
+
+      exec(:match, re_nfa, "A", :no_match)
+      exec(:match, re_nfa, "1", :no_match)
+      exec(:match, re_nfa, "_", :no_match)
+
+      Myrex.teardown(re_nfa)
+
+      re = "[\\P{Xsp}]+"
+      re_nfa = build(re, unquote(mode))
+
+      exec(:match, re_nfa, "$a9_", :match)
+
+      # PROBLEM WITH CHAR CLASS CONTAINING 
+      # NEGATED EXTENSION CATEGORIES THAT INCLUDE CHARS
+
+      # exec(:match, re_nfa, "\t", :no_match)
+      # exec(:match, re_nfa, "\n", :no_match)
+      exec(:match, re_nfa, "\s", :no_match)
+      exec(:match, re_nfa, " ", :no_match)
+      exec(:match, re_nfa, "\u00A0", :no_match)
+
+      Myrex.teardown(re_nfa)
+    end
+
     test "char any quantifiers test #{mode}" do
       re = ".?Z"
       re_nfa = build(re, unquote(mode))
