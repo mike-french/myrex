@@ -414,7 +414,22 @@ manages execution for the input string,
 and tears down the network at the end of the match.
 
 A _batch_ `Executor` just re-uses an existing NFA process network
-and does not tear the network down at the end.
+and does not tear the network down at the end. 
+
+Note that in Elixir (Erlang) sending a message to a non-existent
+process is a silent no-op, not an error, so nodes in the NFA
+may continue traversals even after the `Executor` has halted
+with a successful result. 
+
+The performance trade-off is:
+* _batch_ has no overhead for creating or destroying the NFA (amortized across many inputs);
+  the same network can be used to match other input strings concurrently;
+  the NFA will be distributed across cores, which may increase hardware communication;
+  it may leave zombie traversals running after execution has finished.
+* _oneshot_ has the overhead for creating and destroying an NFA (small for Erlang);
+  for a small number of inputs, it may allow each NFA to run locally on one core;
+  all activity is definitely stopped after the first successful
+  match in `multiple` `:one` mode.
 
 ### `Executor` Example
 
@@ -461,6 +476,12 @@ so it notifies the `Executor` to decrement the total count for a failed match.
 The Success `End` node receives `4""`, which is the empty string,
 so it notifies the `Executor` of a complete successful match.
 The `Executor` reports a match result and terminates.
+
+Of course, the execution is concurrent and non-deterministic, 
+so the sequence of messages does not necessarily happen in the order described.
+It is possible that the successful match is recognized early,
+and the NFA is torn down before all the traversal messages 
+have finished propagating (oneshot mode). 
 
 ## Multiple Matches
 
