@@ -533,6 +533,16 @@ defmodule Myrex.MyrexTest do
     end
   end
 
+  test "just draw useful graphs for doc" do
+    nfa = build("a?b*", :batch)
+    exec(:match, nfa, "a", :match)
+    Myrex.teardown(nfa)
+
+    nfa = build("(?:a|b)+", :batch)
+    exec(:match, nfa, "a", :match)
+    Myrex.teardown(nfa)
+  end
+
   # --------------------------------------------------------
 
   # total count of matches for (a?)^n (a*)^n against a^n

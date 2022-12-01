@@ -170,6 +170,22 @@ A process subgraph has a single input edge and one or more output edges.
 The subgraph may be a single process that has both an input and 
 one or more outputs.
 
+The semantics of the process network is slightly different to the
+traditional definition of an NFA. 
+
+In an NFA, the nodes are _states_ and the edges are _labelled_ transitions.
+The node passively receives a transition, 
+then makes the decision to traverse zero (no match), one or more _outgoing_ edges, 
+based on the match of the edge label to the next input character.
+
+In a process network, the nodes are either _labelled_ matching processes
+or traversal control processes. Network edges carry traversal _state_ messages.
+A node matches or transforms incoming messages with the node rule.
+If there is a successful match, 
+the traversal continues through _all_ outgoing edges. 
+If there a match is unsuccessful, a termination _no match_ 
+message is sent to the manager process.
+
 The NFA is built using a variation of Thompson's Algorithm 
 based on process _combinators._
 A combinator is a function that takes one or more process subgraphs
@@ -380,7 +396,7 @@ so the whole network can be torn down after use, or on error.
 
 The process network has a lifecycle based on _batch_ or _oneshot_ patterns.
 
-### Execution Processes
+### Execution Process
 
 The matching of individual input strings is managed by a 
 transient `Executor` process instance.
@@ -399,6 +415,52 @@ and tears down the network at the end of the match.
 
 A _batch_ `Executor` just re-uses an existing NFA process network
 and does not tear the network down at the end.
+
+### `Executor` Example
+
+Consider matching the string `"ab"` 
+against the regular expression `a?b*`.
+
+ ![Executor](images/executor1.png)
+
+The client invokes the match and spawns the `Executor` process. 
+The `Executor` fires the input string `1"ab"` into the `Start` process.
+The message is labelled here with id `1`.
+The `Executor` keeps a count of `1` existing traversal.
+
+`Start` forwards the input to the `?` node, 
+which makes a copy labelled with id `2`,
+notifies the `Executor` of the extra copy, 
+and sends `1"ab"` and `2"ab"` to its outputs. 
+
+The `a` node successfully matches the first character of input,
+removes the `a` from the input, then sends a new traversal 
+with `2"b"` to its output. 
+
+The `*` node receives `1"ab"`, duplicates it to make `3"ab"`
+and sends them to its outputs.
+The `*` node receives `2"b"`, duplicates it to make `4"b"`
+and sends them to its outputs.
+The `Executor` is notified of each copy to increment the total count.
+
+The Success `End` node receives `1"ab"` and `2"b"`, 
+but these are not all consumed, so it notifies the `Executor`
+to decrement the total count for failed matches.
+
+The `b` node receives `3"ab"`, but it does not match `b`,
+so it notifies the `Executor` to decrement the total count for a failed match.
+Then it receives `4"b"`, which successfully matches `b`, 
+so it removes the `b` from the input, and sends a new traversal with `4""` 
+to its output. 
+
+The `*` node receives `4""`, duplicates it to make `5""`
+sends them to its outputs, and notifies the `Executor` of the extra traversal.
+The `b` node receives the empty string, which does not match,
+so it notifies the `Executor` to decrement the total count for a failed match.
+
+The Success `End` node receives `4""`, which is the empty string,
+so it notifies the `Executor` of a complete successful match.
+The `Executor` reports a match result and terminates.
 
 ## Multiple Matches
 
@@ -644,4 +706,12 @@ Generate the documentation:
 This software is released under the permissive open source [MIT License](LICENSE.txt).
 
 The code and documentation are Copyright © 2022 Mike French
+
+## Acknowledgements
+
+Auto-generated graph diagrams were created and rendered by 
+[GraphViz](https://www.graphviz.org)
+
+Hand-drawn graph diagrams were created using 
+[Excalidraw](https://www.excalidraw.com)
 
