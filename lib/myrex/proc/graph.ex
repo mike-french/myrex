@@ -129,8 +129,12 @@ defmodule Myrex.Proc.Graph do
         "digraph G {\n",
         "  size =\"8,4\";\n",
         "  rankdir=LR;\n",
-        Enum.map(get_nodes(), fn {i, label} ->
-          ["  ", i, " [label=\"", label, "\"];\n"]
+        Enum.map(get_nodes(), fn
+          # success node is always drawn with double circle
+          # change the name to 'end' because it makes it smaller
+          {i, "success"} -> ["  ", i, " [shape=doublecircle,label=end];\n"]
+          # default shape is ellipse
+          {i, label} -> ["  ", i, " [label=\"", label, "\"];\n"]
         end),
         Enum.map(get_edges(), fn {i, j} ->
           ["  ", i, " -> ", j, ";\n"]
