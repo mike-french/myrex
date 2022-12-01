@@ -27,7 +27,7 @@ defmodule Myrex do
         str when is_binary(str) -> str
       end
 
-    Start.init(fn -> Compiler.compile(re, opts) end, gname)
+    Start.init({fn -> Compiler.compile(re, opts) end, gname})
   end
 
   @doc """

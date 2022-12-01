@@ -5,9 +5,9 @@ defmodule Myrex.Compiler do
 
   alias Myrex.Lexer
   alias Myrex.NFA
-  alias Myrex.NFA.Proc
   alias Myrex.NFA.Success
   alias Myrex.Parser
+  alias Myrex.Proc.Proc
 
   @doc """
   Convert a regular expression to an NFA process network.
@@ -17,7 +17,7 @@ defmodule Myrex.Compiler do
   @spec compile(T.regex(), Keyword.t()) :: pid()
   def compile(re, opts) do
     nfa = re |> Lexer.lex() |> Parser.parse() |> ast2nfa(opts)
-    Proc.connect(nfa, Success.init())
+    Proc.connect(nfa, Success.init(nil))
     Proc.input(nfa)
   end
 

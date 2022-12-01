@@ -37,8 +37,8 @@ defmodule Myrex.NFA do
   alias Myrex.NFA.EndAnd
   alias Myrex.NFA.EndGroup
   alias Myrex.NFA.Match
-  alias Myrex.NFA.Proc
   alias Myrex.NFA.Split
+  alias Myrex.Proc.Proc
 
   # ----------------------------
   # quantifier combinators
@@ -62,7 +62,7 @@ defmodule Myrex.NFA do
   """
   @spec zero_one(T.proc()) :: T.proc()
   def zero_one(proc) do
-    split = Split.init(proc, "?")
+    split = Split.init({proc}, "?")
     {split, [split | Proc.outputs(proc)]}
   end
 
@@ -85,7 +85,7 @@ defmodule Myrex.NFA do
   """
   @spec one_more(T.proc()) :: T.proc()
   def one_more(proc) do
-    split = Split.init(proc, "+")
+    split = Split.init({proc}, "+")
     Proc.connect(proc, split)
     {Proc.input(proc), split}
   end
@@ -109,7 +109,7 @@ defmodule Myrex.NFA do
   """
   @spec zero_more(T.proc()) :: T.proc()
   def zero_more(proc) do
-    split = Split.init(proc, "*")
+    split = Split.init({proc}, "*")
     Proc.connect(proc, split)
     split
   end
@@ -141,7 +141,7 @@ defmodule Myrex.NFA do
   @spec search(T.proc(), boolean()) :: T.proc()
   def search(proc, dotall?) do
     split = dotall? |> match_any_char() |> zero_more()
-    begin = BeginGroup.init(:search)
+    begin = BeginGroup.init({:search})
     sequence([split, begin, proc])
   end
 
@@ -168,9 +168,9 @@ defmodule Myrex.NFA do
   end
 
   def group(procs, name) when is_list(procs) and (is_name(name) or is_binary(name)) do
-    begin = BeginGroup.init(name)
-    endgrp = EndGroup.init()
-    sequence([begin | procs] ++ [endgrp])
+    begin = BeginGroup.init({name})
+    enddd = EndGroup.init(nil)
+    sequence([begin | procs] ++ [enddd])
   end
 
   @doc """
@@ -188,7 +188,7 @@ defmodule Myrex.NFA do
   @spec and_sequence(T.procs()) :: T.proc()
 
   def and_sequence(procs) when is_list(procs) do
-    sequence(procs ++ [EndAnd.init()])
+    sequence(procs ++ [EndAnd.init(nil)])
   end
 
   @doc """
@@ -231,7 +231,7 @@ defmodule Myrex.NFA do
   """
   @spec alternate(T.procs(), String.t()) :: T.proc()
   def alternate(procs, name) do
-    split = Split.init(procs, name)
+    split = Split.init({procs}, name)
     {split, Proc.outputs(procs)}
   end
 
@@ -244,7 +244,7 @@ defmodule Myrex.NFA do
   def match_char(char, ccsign \\ :pos) when is_atom(ccsign) do
     accept? = inv(fn c -> c == char end, inv_sign(:pos, ccsign))
     # negation turns Match into peek look ahead
-    Match.init(accept?, peek_sign(ccsign), caret(char, ccsign))
+    Match.init({accept?, peek_sign(ccsign)}, caret(char, ccsign))
   end
 
   @doc """
@@ -259,7 +259,7 @@ defmodule Myrex.NFA do
     # anychar wildcard '.' not allowed in negated character class?
     accept? = inv(fn c -> dotall? or c != ?\n end, inv_sign(:pos, ccsign))
     # negation turns Match into peek look ahead
-    Match.init(accept?, peek_sign(ccsign), caret(?., ccsign))
+    Match.init({accept?, peek_sign(ccsign)}, caret(?., ccsign))
   end
 
   @doc "Match any character in the range between two characters (inclusive)."
@@ -268,7 +268,7 @@ defmodule Myrex.NFA do
       when is_char_range(cr) and is_atom(ccsign) do
     accept? = inv(fn c -> c1 <= c and c <= c2 end, inv_sign(:pos, ccsign))
     # negation turns Match into peek look ahead
-    Match.init(accept?, peek_sign(ccsign), caret(c1, c2, ccsign))
+    Match.init({accept?, peek_sign(ccsign)}, caret(c1, c2, ccsign))
   end
 
   @doc "Match a character to a unicode block, category or script."
@@ -284,7 +284,7 @@ defmodule Myrex.NFA do
       end
 
     # negation turns Match into peek look ahead
-    Match.init(accept?, peek_sign(ccsign), "\\\\p{#{Atom.to_string(prop)}}")
+    Match.init({accept?, peek_sign(ccsign)}, "\\\\p{#{Atom.to_string(prop)}}")
   end
 
   # test atom to be equal or prefix of another atom

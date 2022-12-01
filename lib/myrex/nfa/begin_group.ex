@@ -4,23 +4,26 @@ defmodule Myrex.NFA.BeginGroup do
   import Myrex.Types
   alias Myrex.Types, as: T
 
-  alias Myrex.NFA.Proc
+  alias Myrex.Proc.PNode
+  alias Myrex.Proc.Proc
 
-  @spec init(T.capture_name()) :: pid()
-  def init(name) when is_name(name) or is_binary(name) do
-    Proc.init_child(__MODULE__, :attach, [name], "(")
+  @behaviour PNode
+
+  @impl PNode
+  def init({name} = args, label \\ "(") when is_name(name) or is_binary(name) do
+    Proc.init_child(__MODULE__, :attach, [args], label)
   end
 
-  @spec attach(T.capture_name()) :: no_return()
-  def attach(name) do
+  @impl PNode
+  def attach({_} = args) do
     receive do
-      {:attach, proc} when is_pid(proc) -> match(name, proc)
+      {:attach, proc} when is_pid(proc) -> run(args, proc)
       msg -> raise RuntimeError, message: "Unhandled message #{inspect(msg)}"
     end
   end
 
-  @spec match(T.capture_name(), pid()) :: no_return()
-  defp match(name, next) do
+  @impl PNode
+  def run({name} = args, next) do
     receive do
       {str, pos, groups, caps, executor} ->
         # add default capture entries
@@ -32,6 +35,6 @@ defmodule Myrex.NFA.BeginGroup do
         raise RuntimeError, message: "Unhandled message #{inspect(msg)}"
     end
 
-    match(name, next)
+    run(args, next)
   end
 end

@@ -1,4 +1,4 @@
-defmodule Myrex.NFA.Graph do
+defmodule Myrex.Proc.Graph do
   @moduledoc """
   Utilities for storing a directed graph in the process dictionary.
 
@@ -9,22 +9,26 @@ defmodule Myrex.NFA.Graph do
   and rendered as a PNG image (if GraphViz is installed).
   """
 
-  @typedoc "Unique ID for a node."
-  @type id() :: String.t()
+  defmodule Types do
+    @typedoc "Unique ID for a node."
+    @type id() :: String.t()
 
-  @typedoc "The name label for a node."
-  @type name() :: String.t()
+    @typedoc "The name label for a node."
+    @type label() :: String.t()
 
-  @typedoc "The map of all nodes indexed by ID."
-  @type nodes() :: %{id() => name()}
+    @typedoc "The map of all nodes indexed by ID."
+    @type gnodes() :: %{id() => label()}
 
-  @typedoc "The list of all edges defined by source and destination node IDs."
-  @type edges() :: [{id(), id()}]
+    @typedoc "The list of all edges defined by source and destination node IDs."
+    @type gedges() :: [{id(), id()}]
+  end
+
+  alias Myrex.Proc.Graph.Types, as: G
 
   # keys for graph data in the process dictionary
 
-  @nodes :nodes
-  @edges :edges
+  @gnodes :gnodes
+  @gedges :gedges
   @enabled :enabled
 
   @doc "Enable graph data storage."
@@ -50,20 +54,20 @@ defmodule Myrex.NFA.Graph do
   @doc "Clear all graph data."
   @spec reset_graph() :: :ok
   def reset_graph() do
-    Process.delete(@nodes)
-    Process.delete(@edges)
+    Process.delete(@gnodes)
+    Process.delete(@gedges)
   end
 
-  @doc "Get the complete set of nodes and edges for the graph."
-  @spec get_graph() :: {:proc_graph, nodes(), edges()}
+  @doc "Get the complete set of nodes and edges for t he graph."
+  @spec get_graph() :: {:proc_graph, G.gnodes(), G.gedges()}
   def get_graph() do
     {:proc_graph, get_nodes(), get_edges()}
   end
 
   @doc "Get the node data."
-  @spec get_nodes() :: nodes()
+  @spec get_nodes() :: G.gnodes()
   def get_nodes() do
-    Process.get(@nodes, %{})
+    Process.get(@gnodes, %{})
   end
 
   @doc """
@@ -71,23 +75,23 @@ defmodule Myrex.NFA.Graph do
 
   Return the PID argument.
   """
-  @spec add_node(pid(), name()) :: pid()
-  def add_node(pid, name) when is_pid(pid) do
+  @spec add_node(pid(), G.label()) :: pid()
+  def add_node(pid, label) when is_pid(pid) do
     if enabled?() do
-      # could add PID to the name here
+      # could add PID to the label here
       # so that diagram has PID labels
       id = pid2id(pid)
-      nodes = Map.put(get_nodes(), id, name)
-      Process.put(@nodes, nodes)
+      nodes = Map.put(get_nodes(), id, label)
+      Process.put(@gnodes, nodes)
     end
 
     pid
   end
 
   @doc "Get the edge data."
-  @spec get_edges() :: edges()
+  @spec get_edges() :: G.gedges()
   def get_edges() do
-    Process.get(@edges, [])
+    Process.get(@gedges, [])
   end
 
   @doc """
@@ -101,7 +105,7 @@ defmodule Myrex.NFA.Graph do
       src = pid2id(src_pid)
       dst = pid2id(dst_pid)
       edges = get_edges() |> List.insert_at(0, {src, dst})
-      Process.put(@edges, edges)
+      Process.put(@gedges, edges)
       :ok
     else
       :disabled
@@ -192,7 +196,7 @@ defmodule Myrex.NFA.Graph do
 
   # convert a PID to a unique ID
   # just extract the middle integer value from the PID
-  @spec pid2id(pid()) :: id()
+  @spec pid2id(pid()) :: G.id()
   defp pid2id(pid) do
     inspect(pid)
     |> String.split("\.")

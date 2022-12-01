@@ -3,23 +3,26 @@ defmodule Myrex.NFA.EndGroup do
 
   alias Myrex.Types, as: T
 
-  alias Myrex.NFA.Proc
+  alias Myrex.Proc.PNode
+  alias Myrex.Proc.Proc
 
-  @spec init() :: pid()
-  def init() do
-    Proc.init_child(__MODULE__, :attach, [], ")")
+  @behaviour PNode
+
+  @impl PNode
+  def init(nil, label \\ ")") do
+    Proc.init_child(__MODULE__, :attach, [nil], label)
   end
 
-  @spec attach() :: no_return()
-  def attach() do
+  @impl PNode
+  def attach(nil) do
     receive do
-      {:attach, proc} when is_pid(proc) -> match(proc)
+      {:attach, proc} when is_pid(proc) -> run(nil, proc)
       msg -> raise RuntimeError, message: "Unhandled message #{inspect(msg)}"
     end
   end
 
-  @spec match(pid()) :: no_return()
-  defp match(next) do
+  @impl PNode
+  def run(nil, next) do
     receive do
       {str, pos, [{name, begin} | groups], caps, executor} ->
         # pop the open group off the stack, update the capture results
@@ -33,6 +36,6 @@ defmodule Myrex.NFA.EndGroup do
         raise RuntimeError, message: "Unhandled message #{inspect(msg)}"
     end
 
-    match(next)
+    run(nil, next)
   end
 end

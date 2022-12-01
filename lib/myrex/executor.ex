@@ -10,8 +10,8 @@ defmodule Myrex.Executor do
 
   alias Myrex.Compiler
   alias Myrex.NFA
-  alias Myrex.NFA.Proc
   alias Myrex.NFA.Start
+  alias Myrex.Proc.Proc
 
   @doc """
   Initialize a batch matching operation. 
@@ -32,7 +32,7 @@ defmodule Myrex.Executor do
   @spec init_oneshot(T.regex(), String.t(), T.options()) :: pid()
   def init_oneshot(re, str, opts) when is_binary(re) and is_binary(str) and is_list(opts) do
     # no graph output for oneshot execution
-    start = Start.init(fn -> Compiler.compile(re, opts) end, nil)
+    start = Start.init({fn -> Compiler.compile(re, opts) end, nil})
     # pass the start nfa for prompt teardown
     spawn_link(__MODULE__, :exec, [start, start, str, opts, self()])
   end
@@ -55,7 +55,7 @@ defmodule Myrex.Executor do
     # build a prefix subgraph for '.*' linked to a new Start process
     # the executor will teardown the prefix Start process at the end of the search
     dotall? = Keyword.get(opts, :dotall, T.default(:dotall))
-    prefix = Start.init(fn -> nfa |> NFA.search(dotall?) |> Proc.input() end, nil)
+    prefix = Start.init({fn -> nfa |> NFA.search(dotall?) |> Proc.input() end, nil})
     # pass prefix nfa subgraph for teardown, not the original NFA
     spawn_link(__MODULE__, :exec, [prefix, prefix, str, opts, self()])
   end

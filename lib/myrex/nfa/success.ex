@@ -2,23 +2,24 @@ defmodule Myrex.NFA.Success do
   @moduledoc "The final node that handles a successful match."
 
   alias Myrex.Executor
-  alias Myrex.NFA.Proc
+  alias Myrex.Proc.PNode
+  alias Myrex.Proc.Proc
 
-  @doc "Initialize final Success NFA process node."
-  @spec init() :: pid()
-  def init() do
-    Proc.init_child(__MODULE__, :match, [], "success")
+  @behaviour PNode
+
+  @impl PNode
+  def init(nil, label \\ "success") do
+    Proc.init_child(__MODULE__, :run, [nil, nil], label)
   end
 
   # no need for attach, because the executor is carried in the traversal state
-  # just included here so we could make an NFA node behaviour in the future
-  @spec attach(any()) :: no_return()
+  @impl PNode
   def attach(_) do
     raise UndefinedFunctionError, message: "Success.attach/1"
   end
 
-  @spec match() :: no_return()
-  def match() do
+  @impl PNode
+  def run(nil, nil) do
     receive do
       {"", _len, [], captures, executor} ->
         # finish state of the NFA and end of input, so a complete match
@@ -47,6 +48,6 @@ defmodule Myrex.NFA.Success do
         raise RuntimeError, message: "Unhandled message #{inspect(msg)}"
     end
 
-    match()
+    run(nil, nil)
   end
 end

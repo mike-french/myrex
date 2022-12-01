@@ -1,4 +1,4 @@
-defmodule Myrex.NFA.Proc do
+defmodule Myrex.Proc.Proc do
   @moduledoc """
   General utilities for networks of processes 
   with a single input process
@@ -15,10 +15,10 @@ defmodule Myrex.NFA.Proc do
   * `{ Input, [Output] }`
   """
 
-  import Myrex.Types
-  alias Myrex.Types, as: T
+  import Myrex.Proc.Types
+  alias Myrex.Proc.Types, as: T
 
-  alias Myrex.NFA.Graph
+  alias Myrex.Proc.Graph
 
   @doc """
   Connect two process networks.
@@ -90,7 +90,7 @@ defmodule Myrex.NFA.Proc do
   @doc """
   Continue a traversal by sending a new state to the next process.
   """
-  @spec traverse(pid(), T.state()) :: :ok
+  @spec traverse(pid(), any()) :: :ok
   def traverse(next, state) when is_pid(next) do
     send(next, state)
     :ok

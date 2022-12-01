@@ -1,32 +1,31 @@
 defmodule Myrex.NFA.Match do
   @moduledoc "Match a single character of input."
 
-  alias Myrex.Types, as: T
-
   alias Myrex.Executor
-  alias Myrex.NFA.Proc
+  alias Myrex.Proc.PNode
+  alias Myrex.Proc.Proc
 
-  @spec init(T.acceptor(), T.boolean(), String.t()) :: pid()
+  @behaviour PNode
 
-  def init(accept?, peek?, label) when is_function(accept?, 1) and is_boolean(peek?) do
-    # peek lookahead does not advance the input position
-    Proc.init_child(__MODULE__, :attach, [accept?, peek?, label], label)
+  @impl PNode
+  def init({accept?, peek?} = args, label) when is_function(accept?, 1) and is_boolean(peek?) do
+    Proc.init_child(__MODULE__, :attach, [args], label)
   end
 
-  @spec attach(T.acceptor(), boolean(), String.t()) :: no_return()
-  def attach(accept?, peek?, label) do
+  @impl PNode
+  def attach(args) do
     receive do
-      {:attach, next} when is_pid(next) -> match(accept?, peek?, next, label)
+      {:attach, next} when is_pid(next) -> run(args, next)
       msg -> raise RuntimeError, message: "Unhandled message #{inspect(msg)}"
     end
   end
 
-  @spec match(T.acceptor(), boolean(), pid(), String.t()) :: no_return()
-  defp match(accept?, peek?, next, label_for_debug) do
+  @impl PNode
+  def run({accept?, peek?} = args, next) do
     receive do
       {<<c::utf8, rest::binary>> = all, pos, groups, captures, executor} ->
         if accept?.(c) do
-          # peek does not advance input
+          # peek lookahead does not advance the input position
           {new_str, new_pos} = if peek?, do: {all, pos}, else: {rest, pos + 1}
           Proc.traverse(next, {new_str, new_pos, groups, captures, executor})
         else
@@ -41,6 +40,6 @@ defmodule Myrex.NFA.Match do
         raise RuntimeError, message: "Unhandled message #{inspect(msg)}"
     end
 
-    match(accept?, peek?, next, label_for_debug)
+    run(args, next)
   end
 end
