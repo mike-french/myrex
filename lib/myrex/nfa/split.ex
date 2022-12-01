@@ -12,7 +12,7 @@ defmodule Myrex.NFA.Split do
   that the number of traversals has increased.
   """
 
-  import Myrex.Types
+  import Myrex.Proc.Types
 
   alias Myrex.Proc.PNode
   alias Myrex.Proc.Proc
