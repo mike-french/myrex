@@ -234,12 +234,8 @@ defmodule Myrex.MyrexTest do
       re_nfa = build(re, unquote(mode))
 
       exec(:match, re_nfa, "$a9_", :match)
-
-      # PROBLEM WITH CHAR CLASS CONTAINING 
-      # NEGATED EXTENSION CATEGORIES THAT INCLUDE CHARS
-
-      # exec(:match, re_nfa, "\t", :no_match)
-      # exec(:match, re_nfa, "\n", :no_match)
+      exec(:match, re_nfa, "\t", :no_match)
+      exec(:match, re_nfa, "\n", :no_match)
       exec(:match, re_nfa, "\s", :no_match)
       exec(:match, re_nfa, " ", :no_match)
       exec(:match, re_nfa, "\u00A0", :no_match)

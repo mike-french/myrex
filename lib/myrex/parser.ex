@@ -134,24 +134,6 @@ defmodule Myrex.Parser do
     parse(toks, [{:alternate, pre} | post])
   end
 
-  defp parse([{:char_category, sign, :Xan} | toks], stack) do
-    # Xan alphanumeric = Letter or Number 
-    cc = {:char_class, sign, [{:char_category, :pos, :L}, {:char_category, :pos, :N}]}
-    parse(toks, [cc | stack])
-  end
-
-  defp parse([{:char_category, sign, :Xsp} | toks], stack) do
-    # Xsp whitespace = Separator Z, htab, newline, vtab, form feed, carriage return
-    cc = {:char_class, sign, [{:char_category, :pos, :Z}, ?\t, ?\n, ?\v, ?\f, ?\r]}
-    parse(toks, [cc | stack])
-  end
-
-  defp parse([{:char_category, sign, :Xwd} | toks], stack) do
-    # Xwd word = Letter or Number or '_'
-    cc = {:char_class, sign, [{:char_category, :pos, :L}, {:char_category, :pos, :N}, ?_]}
-    parse(toks, [cc | stack])
-  end
-
   defp parse([{tag, _sign, _prop} = tok | toks], stack)
        when tag == :char_block or tag == :char_category or tag == :char_script do
     parse(toks, [tok | stack])
@@ -182,23 +164,6 @@ defmodule Myrex.Parser do
     # error???
     IO.puts("Warning: any char wildcard '.' in character class - always passes or ^fails.")
     parse_cc(toks, [:any_char | ccs], ccsign)
-  end
-
-  defp parse_cc([{:char_category, sign, :Xan} | toks], ccs, ccsign) do
-    # Xan alphanumeric = Letter or Number 
-    parse_cc(toks, [{:char_category, sign, :L}, {:char_category, sign, :N} | ccs], ccsign)
-  end
-
-  # BUG ALERT - CC NEGATED CATEGORY \P DOES NOT WORK WITH SPECIFIC CHARS 
-
-  defp parse_cc([{:char_category, sign, :Xsp} | toks], ccs, ccsign) do
-    # Xsp whitespace = Separator Z, htab, newline, vtab, form feed, carriage return
-    parse_cc(toks, [{:char_category, sign, :Z}, ?\t, ?\n, ?\v, ?\f, ?\r | ccs], ccsign)
-  end
-
-  defp parse_cc([{:char_category, sign, :Xwd} | toks], ccs, ccsign) do
-    # Xwd word = Letter or Number or '_'
-    parse_cc(toks, [{:char_category, sign, :L}, {:char_category, sign, :N}, ?_ | ccs], ccsign)
   end
 
   defp parse_cc([{tag, _sign, _prop} = tok | toks], ccs, ccsign)

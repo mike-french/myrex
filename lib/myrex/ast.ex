@@ -184,14 +184,19 @@ defmodule Myrex.AST do
   end
 
   # Convert a character class element to indented text format.
-  # A char class element is a char range or literal char.
-  @spec cc2str(char() | T.char_range(), T.count()) :: IO.chardata()
+  # A char class element is a nested char class, 
+  # char range, any char or literal char.
+  @spec cc2str(char() | T.char_range() | T.char_class(), T.count()) :: IO.chardata()
   defp cc2str(cc, d), do: [indent(d), cc2str(cc), ?\n]
 
   # Convert a character class element to text format.
   @spec cc2str(char() | T.char_range()) :: IO.chardata()
+
   defp cc2str({:char_range, c1, c2}), do: to_string([esc(c1), ?-, esc(c2)])
   defp cc2str(:any_char), do: "."
+
+  # nested char class for \P is always negated
+  defp cc2str({:char_class, :neg, ccs}), do: [?[, ?^, Enum.map(ccs, &cc2str(&1)), ?]]
 
   defp cc2str({tag, sign, prop})
        when tag == :char_block or tag == :char_category or tag == :char_script do

@@ -218,29 +218,10 @@ defmodule Myrex.ParserTest do
     end
 
     test "par extension classes" do
-      do_par(
-        "[\\p{Xan}]",
-        {:char_class, :pos, [{:char_category, :pos, :L}, {:char_category, :pos, :N}]},
-        false
-      )
-
-      do_par(
-        "[\\P{Xwd}]",
-        {:char_class, :pos, [{:char_category, :neg, :L}, {:char_category, :neg, :N}, ?_]},
-        false
-      )
-
-      do_par(
-        "\\p{Xwd}",
-        {:alternate, [{:char_category, :pos, :L}, {:char_category, :pos, :N}, ?_]},
-        false
-      )
-
-      do_par(
-        "\\P{Xsp}",
-        {:alternate, [{:char_category, :neg, :Z}, ?\t, ?\n, ?\v, ?\f, ?\r]},
-        false
-      )
+      do_par("[\\p{Xan}]", {:char_class, :pos, [{:char_category, :pos, :Xan}]}, false)
+      do_par("[\\P{Xwd}]", {:char_class, :pos, [{:char_category, :neg, :Xwd}]}, false)
+      do_par("\\p{Xwd}", {:char_category, :pos, :Xwd}, false)
+      do_par("\\P{Xsp}", {:char_category, :neg, :Xsp}, false)
     end
 
     test "par group test" do

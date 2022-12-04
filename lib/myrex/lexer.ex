@@ -163,8 +163,7 @@ defmodule Myrex.Lexer do
     prop = prop_str |> String.to_atom()
 
     cond do
-      # compound extension classes that can only be interpreted by the parser
-      # because it knows the context: inside or outside a char class 
+      # compound extension classes 
       prop in [:Xan, :Xsp, :Xwd] ->
         {{:char_category, sign, prop}, t}
 

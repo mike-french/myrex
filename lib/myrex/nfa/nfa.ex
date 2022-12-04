@@ -274,24 +274,35 @@ defmodule Myrex.NFA do
   @doc "Match a character to a unicode block, category or script."
   @spec match_property({atom(), T.sign(), atom()}, T.sign()) :: pid()
   def match_property({tag, sign, prop}, ccsign \\ :pos) when is_atom(prop) and is_atom(ccsign) do
-    inv? = inv_sign(sign, ccsign)
-
     accept? =
       case tag do
-        :char_block -> inv(fn c -> Unicode.block(c) == prop end, inv?)
-        :char_category -> inv(fn c -> subcat?(Unicode.category(c), prop) end, inv?)
-        :char_script -> inv(fn c -> Unicode.script(c) == prop end, inv?)
+        :char_block ->
+          fn c -> Unicode.block(c) == prop end
+
+        :char_script ->
+          fn c -> Unicode.script(c) == prop end
+
+        :char_category ->
+          case prop do
+            :Xan -> fn c -> subcat?(c, :L) or subcat?(c, :N) end
+            :Xwd -> fn c -> subcat?(c, :L) or subcat?(c, :N) or c == ?_ end
+            :Xsp -> fn c -> c in [?\s, ?\n, ?\r, ?\t, ?\v, ?\f] or subcat?(c, :Z) end
+            _ -> fn c -> subcat?(c, prop) end
+          end
       end
 
-    # negation turns Match into peek look ahead
-    Match.init({accept?, peek_sign(ccsign)}, "\\\\p{#{Atom.to_string(prop)}}")
+    # negation turns consuming match into peek look ahead
+    inv? = inv_sign(sign, ccsign)
+    Match.init({inv(accept?, inv?), peek_sign(ccsign)}, "\\\\p{#{Atom.to_string(prop)}}")
   end
 
   # test atom to be equal or prefix of another atom
   # implements subset relation for categories, e.g. :Lu < :L
-  @spec subcat?(atom(), atom()) :: boolean()
-  defp subcat?(cat, cat), do: true
-  defp subcat?(sub, cat), do: String.starts_with?(Atom.to_string(sub), Atom.to_string(cat))
+  @spec subcat?(char(), atom()) :: boolean()
+  defp subcat?(c, cat) do
+    sub = Unicode.category(c)
+    sub == cat or String.starts_with?(Atom.to_string(sub), Atom.to_string(cat))
+  end
 
   # convert char class sign and operator sign into an operator inversion flag
   @spec inv_sign(T.sign(), T.sign()) :: boolean()
@@ -320,7 +331,9 @@ defmodule Myrex.NFA do
   defp caret(c1, c2, :pos), do: IO.chardata_to_string(chrs(c1, c2))
   defp caret(c1, c2, :neg), do: IO.chardata_to_string([?^ | chrs(c1, c2)])
 
+  # range of quoted characters
   defp chrs(c1, c2), do: [chr(c1), ?-, chr(c2)]
 
+  # quote a character
   defp chr(c), do: [?', c, ?']
 end
