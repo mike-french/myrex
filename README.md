@@ -443,7 +443,7 @@ The `Executor` fires the input string `1"ab"` into the `Start` process.
 The message is labelled here with id `1`.
 The `Executor` keeps a count of `1` existing traversal.
 
-`Start` forwards the input to the `?` node, 
+`Start` forwards the input to the `?` Split node, 
 which makes a copy labelled with id `2`,
 notifies the `Executor` of the extra copy, 
 and sends `1"ab"` and `2"ab"` to its outputs. 
@@ -452,7 +452,7 @@ The `a` node successfully matches the first character of input,
 removes the `a` from the input, then sends a new traversal 
 with `2"b"` to its output. 
 
-The `*` node receives `1"ab"`, duplicates it to make `3"ab"`
+The `*` Split node receives `1"ab"`, duplicates it to make `3"ab"`
 and sends them to its outputs.
 The `*` node receives `2"b"`, duplicates it to make `4"b"`
 and sends them to its outputs.
