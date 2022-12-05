@@ -243,6 +243,21 @@ defmodule Myrex.MyrexTest do
       Myrex.teardown(re_nfa)
     end
 
+    test "special escape categories #{mode}" do
+      for re <- ["(\\w+)\\s+(\\w+)", "(\\S+)\\W+(\\S+)"] do
+        re_nfa = build(re, unquote(mode))
+
+        exec(:match, re_nfa, "foo bar", {:match, %{1 => "foo", 2 => "bar"}})
+        exec(:match, re_nfa, "1_e\t\r\n_Z99", {:match, %{1 => "1_e", 2 => "Z99"}})
+
+        exec(:match, re_nfa, " A ", :no_match)
+        exec(:match, re_nfa, "\t1abc\n", :no_match)
+        exec(:match, re_nfa, "A ", :no_match)
+
+        Myrex.teardown(re_nfa)
+      end
+    end
+
     test "char any quantifiers test #{mode}" do
       re = ".?Z"
       re_nfa = build(re, unquote(mode))
@@ -581,32 +596,42 @@ defmodule Myrex.MyrexTest do
 
   defp exec(:match, re_nfa, str, {:matches, _} = expect, opts) do
     {:matches, expect_caps} = success = add_def_cap(str, expect)
+    result = do_apply(:match, re_nfa, str, opts) |> elem(0)
 
-    case do_apply(:match, re_nfa, str, opts) |> elem(0) do
+    case result do
       {:matches, actual_caps} -> assert Enum.sort(expect_caps) == Enum.sort(actual_caps)
       # these will fail, but we want the detailed error message for the comparison
       {:match, actual} -> assert actual in expect_caps
       nomatch -> assert nomatch == success
     end
+
+    result
   end
 
   defp exec(:search, re_nfa, str, {:searches, _} = expects, opts) do
     {:searches, expect_srchs} = success = add_def_cap(str, expects)
+    result = do_apply(:search, re_nfa, str, opts) |> elem(0)
 
-    case do_apply(:search, re_nfa, str, opts) |> elem(0) do
+    case result do
       {:searches, actual_srchs} -> assert Enum.sort(expect_srchs) == actual_srchs
       # these will fail, but we want the detailed error message for the comparison
       fail -> assert fail == success
     end
+
+    result
   end
 
   defp exec(f, re_nfa, str, expects, opts) when is_list(expects) do
     results = Enum.map(expects, &add_def_cap(str, &1))
-    assert elem(do_apply(f, re_nfa, str, opts), 0) in results
+    result = do_apply(f, re_nfa, str, opts) |> elem(0)
+    assert result in results
+    result
   end
 
   defp exec(f, re_nfa, str, expect, opts) do
-    assert add_def_cap(str, expect) == do_apply(f, re_nfa, str, opts) |> elem(0)
+    result = do_apply(f, re_nfa, str, opts) |> elem(0)
+    assert add_def_cap(str, expect) == result
+    result
   end
 
   @spec do_apply(atom(), T.regex() | pid(), String.t(), T.options()) :: {any(), non_neg_integer()}
