@@ -186,16 +186,6 @@ the traversal continues through _all_ outgoing edges.
 If there a match is unsuccessful, a termination _no match_ 
 message is sent to the manager process.
 
-The NFA is built using a variation of Thompson's Algorithm 
-based on process _combinators._
-A combinator is a function that takes one or more process subgraphs
-and combines them into a single larger graph.
-Process combinators correspond to AST branch nodes.
-Combinators recursively build larger networks
-from smaller operator subgraphs, 
-grounded in atomic character matchers
-\[[Cox](https://swtch.com/~rsc/regexp/regexp1.html)\].
-
 ### Traversals
 
 A traversal is a sequence of 
@@ -229,6 +219,16 @@ Each message contains the traversal state for the match:
 * A client process return address for the result.
 
 ### Combinators
+
+The NFA is built using a variation of Thompson's Algorithm 
+based on process _combinators._
+A combinator is a function that takes one or more process subgraphs
+and combines them into a single larger graph.
+Process combinators correspond to AST branch nodes.
+Combinators recursively build larger networks
+from smaller operator subgraphs, 
+grounded in atomic character matchers
+\[[Cox](https://swtch.com/~rsc/regexp/regexp1.html)\].
 
 There are five processes used by combinators
 to implement parts of the AST as process subgraphs:
@@ -529,30 +529,31 @@ The no. of matches, _S(n),_ is calculated by a
 dot product of two vectors sliced from Pascal's Triangle 
 (see the tech note \[[pdf](MultipleMatchRegex.pdf)\] for a proof sketch).
 
-Here are specific examples for `n=3` and `n=4`.
+$$S(n) \hspace{1em} = \hspace{1em} \sum_{k=0}^n {}^{n}C_{k} \times {}^{n+k-1}C_{k} \hspace{1em} = \hspace{1em} \sum_{k=0}^n \binom{n}{k} \times \binom{n+k-1}{k}$$
+
+Here are specific examples for `n=3` and `n=4`:
 
 ```
 S(3) =   [1,3,3,1] * [1,3,6,10]     =   1+9+18+10   =  38
 
 S(4) = [1,4,6,4,1] * [1,4,10,20,35] = 1+16+60+80+35 = 192
 ```
-  
-  ![Zero or more](images/pascals-triangle-3-4-small.png)
+
+<p align="center">
+  <img src="images/pascals-triangle-3-4-small.png"/>
+</p>
 
 Here is the number of traversals _S(n)_ for each value of _n,_
 and the elapsed time  for _one_ and _all_ matches in seconds, 
-except for the ~0 timings, which are less than 1 microsecond _(us)_ :
+except for the ~0 timings, which are less than 1 microsecond:
 
-```
-+------+---+---+----+-----+-------+-------+--------+---------+---------+
-|  n   | 1 | 2 |  3 |   4 |     5 |     6 |      7 |       8 |       9 |
-| S(n) | 2 | 8 | 38 | 192 | 1,002 | 5,336 | 28,814 | 157,184 | 864,146 |
-+------+---+---+----+-----+-------+-------+--------+---------+---------+
-| one  |                                  | < 1 us |  < 1 us |   0.015 |
-| all  |                                  |  0.250 |   1.485 |   9.625 |
-+------+---+---+----+-----+-------+-------+--------+---------+---------+
 
-```
+|  n      | 1 | 2 |  3 |   4 |     5 |     6 |         7 |         8 |       9 |
+|---------|---|---|----|-----|-------|-------|-----------|-----------|---------|
+| S(n)    | 2 | 8 | 38 | 192 | 1,002 | 5,336 |    28,814 |   157,184 | 864,146 |
+| t _one_ |   |   |    |     |       |       | < 1 &mu;s | < 1 &mu;s | 0.015 s |
+| t _all_ |   |   |    |     |       |       |   0.250 s |   1.485 s | 9.625 s |
+
 So about 100,000 matches per second when returning all results,
 and 15 ms to return the first match while up to 864k traversals 
 are initiated in parallel.
