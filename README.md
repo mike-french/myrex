@@ -417,19 +417,9 @@ A _batch_ `Executor` just re-uses an existing NFA process network
 and does not tear the network down at the end. 
 
 Note that in Elixir (Erlang) sending a message to a non-existent
-process is a silent no-op, not an error, so nodes in the NFA
+process is a silent no-op, not an error, so nodes in a batch NFA
 may continue traversals even after the `Executor` has halted
 with a successful result. 
-
-The performance trade-off is:
-* _batch_ has no overhead for creating or destroying the NFA (amortized across many inputs);
-  the same network can be used to match other input strings concurrently;
-  the NFA will be distributed across cores, which may increase hardware communication;
-  it may leave zombie traversals running after execution has finished.
-* _oneshot_ has the overhead for creating and destroying an NFA (small for Erlang);
-  for a small number of inputs, it may allow each NFA to run locally on one core;
-  all activity is definitely stopped after the first successful
-  match in `multiple` `:one` mode.
 
 ### `Executor` Example
 
@@ -439,8 +429,8 @@ against the regular expression `a?b*`.
  ![Executor](images/executor1.png)
 
 The client invokes the match and spawns the `Executor` process. 
-The `Executor` fires the input string `1"ab"` into the `Start` process.
-The message is labelled here with id `1`.
+The `Executor` fires the input string `1"ab"` into the `Start` process 
+(the message is labelled with id `1` to help the explanation).
 The `Executor` keeps a count of `1` existing traversal.
 
 `Start` forwards the input to the `?` Split node, 
@@ -481,7 +471,7 @@ Of course, the execution is concurrent and non-deterministic,
 so the sequence of messages does not necessarily happen in the order described.
 It is possible that the successful match is recognized early,
 and the NFA is torn down before all the traversal messages 
-have finished propagating (oneshot mode). 
+have finished propagating ( _oneshot_ mode ). 
 
 ## Multiple Matches
 
@@ -700,6 +690,19 @@ never a reference `{0,length}`.
 `TODO`
 
 ## Performance
+
+There is a performance trade-off for _batch v. onshot.
+
+Batch:_
+* No overhead for creating or destroying the NFA (amortized across many inputs).
+* The same network can be used to match other input strings concurrently.
+* The NFA will be distributed across cores, which may increase hardware communication.
+* There may be zombie traversals running after an execution in _one_ mode has finished.
+
+Oneshot:
+* Overhead for creating and destroying an NFA (small for Erlang).
+* For a small number of inputs, it may allow each NFA to run locally on one core.
+* All activity is definitely stopped after the first successful match in _one_ mode.
 
 `TODO`
 
