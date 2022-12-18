@@ -23,16 +23,16 @@ defmodule Myrex.NFA.Match do
   @impl PNode
   def run({accept?, peek?} = args, next) do
     receive do
-      {<<c::utf8, rest::binary>> = all, pos, groups, captures, executor} ->
+      {:parse, <<c::utf8, rest::binary>> = all, pos, groups, captures, executor} ->
         if accept?.(c) do
           # peek lookahead does not advance the input position
           {new_str, new_pos} = if peek?, do: {all, pos}, else: {rest, pos + 1}
-          Proc.traverse(next, {new_str, new_pos, groups, captures, executor})
+          Proc.traverse(next, {:parse, new_str, new_pos, groups, captures, executor})
         else
           Executor.notify_result(executor, :no_match)
         end
 
-      {"", _, _, _, executor} ->
+      {:parse, "", _, _, _, executor} ->
         # end of input
         Executor.notify_result(executor, :no_match)
 

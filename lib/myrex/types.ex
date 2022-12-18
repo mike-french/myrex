@@ -244,7 +244,7 @@ defmodule Myrex.Types do
   @type groups() :: [{capture_name(), position()}]
 
   @typedoc """
-  Traversal state passed as a message between NFA nodes.
+  Parser traversal state passed as a message between NFA nodes.
   The input state is the remaining string to be processed,
   and its start position within the original input.
   The group capture state is the stack of current open groups,
@@ -252,6 +252,6 @@ defmodule Myrex.Types do
   The executor is the process for reporting changes in the 
   message count and the final result of match or no match.
   """
-  @type state() :: {String.t(), position(), groups(), captures(), executor :: pid()}
-  defguard is_state(s) when is_tuple(s) and tuple_size(s) == 5
+  @type state() :: {:parse, String.t(), position(), groups(), captures(), executor :: pid()}
+  defguard is_state(s) when is_tuple(s) and tuple_size(s) == 6 and elem(s, 0) == :parse
 end

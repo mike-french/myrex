@@ -25,10 +25,10 @@ defmodule Myrex.NFA.EndAnd do
   @impl PNode
   def run(nil, next) do
     receive do
-      {<<_c::utf8, rest::binary>>, pos, groups, captures, executor} ->
+      {:parse, <<_c::utf8, rest::binary>>, pos, groups, captures, executor} ->
         # the preceding AND sequence matched on a peek lookahead 
         # now they have all passed, so we advance the input
-        Proc.traverse(next, {rest, pos + 1, groups, captures, executor})
+        Proc.traverse(next, {:parse, rest, pos + 1, groups, captures, executor})
 
       msg ->
         raise RuntimeError, message: "Unhandled message #{inspect(msg)}"

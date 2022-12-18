@@ -53,7 +53,7 @@ defmodule Myrex.NFA.Split do
   @impl PNode
   def run(nil, nexts) when is_list(nexts) do
     receive do
-      {_, _, _, _, executor} = msg ->
+      {:parse, _, _, _, _, executor} = msg ->
         # increment the number of traversals
         delta_n = length(nexts) - 1
         if delta_n > 0, do: send(executor, delta_n)

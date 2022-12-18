@@ -67,7 +67,7 @@ defmodule Myrex.Executor do
     multiple = Keyword.get(opts, :multiple, T.default(:multiple))
     offset = Keyword.get(opts, :offset, 0)
     str = if offset > 0, do: String.slice(str, offset, String.length(str) - offset), else: str
-    Proc.traverse(start, {str, offset, [], %{}, self()})
+    Proc.traverse(start, {:parse, str, offset, [], %{}, self()})
     execute(1, client, teardown, timeout, multiple, :no_match)
   end
 

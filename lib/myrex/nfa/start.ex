@@ -11,6 +11,9 @@ defmodule Myrex.NFA.Start do
   the builder exits normally and all the linked NFA processes will exit.
   """
 
+  import Myrex.Types
+  alias Myrex.Types, as: T
+
   alias Myrex.Proc.Graph
   alias Myrex.Proc.PNode
   alias Myrex.Proc.Proc
@@ -77,7 +80,7 @@ defmodule Myrex.NFA.Start do
   @impl PNode
   def run(nil, nfa) do
     receive do
-      state when is_tuple(state) -> Proc.traverse(nfa, state)
+      state when T.is_state(state) -> Proc.traverse(nfa, state)
       :teardown -> exit(:normal)
       msg -> raise RuntimeError, message: "Unhandled message #{inspect(msg)}"
     end
