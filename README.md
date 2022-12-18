@@ -230,13 +230,13 @@ from smaller operator subgraphs,
 grounded in atomic character matchers
 \[[Cox](https://swtch.com/~rsc/regexp/regexp1.html)\].
 
-There are five processes used by combinators
+There are 6 processes used by combinators
 to implement parts of the AST as process subgraphs:
 * Branch nodes (quantifiers and alternate choice) 
   use `Split` to clone (fan out) traversals 
   across 2 or more downstream subgraphs.
 * Groups use `BeginGroup` and `EndGroup` to record captures.
-* Negated character classes use `EndAnd` to 
+* Negated character classes use `BeginPeek` and `EndPeek` to 
   advance the input after a sequence of peek lookahead matches.
 * Leaf nodes use `Match` with an _acceptor_ function
   to do the actual matching of individual characters, 
@@ -265,25 +265,26 @@ in --->|Begin|--->| P1 |---> ... --->| Pn |--->| End |---> out
   
   The `BeginGroup` and `EndGroup` are labelled with `(` and `)`.
 
- Combinator for an AND sequence of peek lookahead 
+ Combinator for an AND NOT sequence of peek lookahead 
  matching nodes  `M1 M2 .. Mn`.
  The peeking nodes are created in a negated character class,
- where all tests must pass for the first character of input,
+ where all negative tests must pass for the first character of input,
  but the character is not consumed. 
  At the end of the sequence, when all matches have passed,
  the character is consumed from input.
 
   ```
-          +--+             +--+    +-----+
-   in --->|M1|---> ... --->|Mn|--->| End |---> out
-          +--+             +--+    | AND |
-                                   +-----+
+          +-----+    +--+             +--+    +----+
+   in --->|Begin|--->|M1|---> ... --->|Mn|--->|End |---> out
+          |Peek |    +--+             +--+    |Peek|
+          +-----+                             +----+
   ```
   Example for REGEX `[^0-9p]`:
   
   ![Negated character class](images/[^0-9p].png)
   
-  The `EndAnd` node is labelled with `[^]`.
+  The `BeginPeek` node is labelled with `[^`
+  and `EndPeek` node is labelled with `^]`.
   
 #### Alternate Choice
 
@@ -490,6 +491,8 @@ A _non-greedy_ sequential algorithm will always capture `"","","","aa"`.
 A parallel algorithm that finds all matches will return 8 different 
 sets of captures.
 
+### Multiplicity Option
+
 There is an option to choose how multiple matches are handled:
 * _One_ - stop at the first successful match and return the capture.
   If it is a oneshot execution, then teardown the NFA process network.
@@ -502,9 +505,11 @@ it is just the first successful traversal to complete execution.
 The actual outcome depends on the Erlang BEAM scheduler.
 
 If the regular expression is not ambiguous, 
-then the option should always be _one,_
+then the option should always be set to _one,_
 because there may be a long delay to wait for 
 all failure traversals to finish.
+
+### Ambiguous Example
 
 Let the exponential meta-operator `^` mean repetition
 of characters and groups in a string.
@@ -521,7 +526,9 @@ dot product of two vectors sliced from Pascal's Triangle
 
 $$S(n) \hspace{1em} = \hspace{1em} \sum_{k=0}^n {}^{n}C_{k} \times {}^{n+k-1}C_{k} \hspace{1em} = \hspace{1em} \sum_{k=0}^n \binom{n}{k} \times \binom{n+k-1}{k}$$
 
-Here are specific examples for `n=3` and `n=4`:
+Notice that $n+k-1$ is the _row_ index (as shown in the diagram below).
+
+These are specific examples for `n=3` and `n=4`:
 
 ```
 S(3) =   [1,3,3,1] * [1,3,6,10]     =   1+9+18+10   =  38

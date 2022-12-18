@@ -1,7 +1,7 @@
-defmodule Myrex.NFA.EndAnd do
+defmodule Myrex.NFA.EndPeek do
   @moduledoc """
-  The process at the end of an AND match sequence.
-  Only a negated character class uses an AND sequence.
+  The process at the end of an AND NOT peek lookahead sequence.
+  Only a negated character class uses a peek sequence.
   """
 
   alias Myrex.Proc.PNode
@@ -10,7 +10,7 @@ defmodule Myrex.NFA.EndAnd do
   @behaviour PNode
 
   @impl PNode
-  def init(nil, label \\ "[^]") do
+  def init(nil, label \\ "^]") do
     Proc.init_child(__MODULE__, :attach, [nil], label)
   end
 

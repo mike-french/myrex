@@ -133,7 +133,7 @@ defmodule Myrex.Compiler do
 
   defp ast2nfa({:char_class, :neg, ccs}, opts) do
     # negated char class is AND sequence of negated (peek lookahead) elements
-    ccs |> Enum.map(&cc2nfa(&1, opts, :neg)) |> NFA.and_sequence()
+    ccs |> Enum.map(&cc2nfa(&1, opts, :neg)) |> NFA.peek_sequence()
   end
 
   defp ast2nfa(ast, _) do
