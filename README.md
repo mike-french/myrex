@@ -517,12 +517,12 @@ Let the exponential meta-operator `^` mean repetition
 of characters and groups in a string.
 So `a^4` for a string means `aaaa` 
 and `(a?)^4` for a regex means `(a?)(a?)(a?)(a?)`.
-We will consider a regex of the form `(a?)^n (a*)^n` 
+We will consider a regex of the form `(a?)^n(a*)^n` 
 matching a string of `a^n`
 (a highly ambiguous exaggeration from the example in
 \[[Cox](https://swtch.com/~rsc/regexp/regexp1.html)\]).
 
-The no. of matches, _S(n),_ is calculated by a 
+The number of matches, _S(n),_ is calculated by a 
 dot product of two vectors sliced from Pascal's Triangle 
 (see the tech note \[[pdf](MultipleMatchRegex.pdf)\] for a proof sketch).
 
