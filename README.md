@@ -259,11 +259,10 @@ in --->|Begin|--->| P1 |---> ... --->| Pn |--->| End |---> out
        |Group|    +----+             +----+    |Group|
        +-----+                                 +-----+
 ```
-  Example for REGEX `"(ab)"`:
+  Example for REGEX `"(ab)"`, where the 
+  `BeginGroup` and `EndGroup` are labelled with `(` and `)`.
   
   ![Group capture](images/(ab).png)
-  
-  The `BeginGroup` and `EndGroup` are labelled with `(` and `)`.
 
  Combinator for an AND NOT sequence of peek lookahead 
  matching nodes  `M1 M2 .. Mn`.
@@ -279,12 +278,10 @@ in --->|Begin|--->| P1 |---> ... --->| Pn |--->| End |---> out
           |Peek |    +--+             +--+    |Peek|
           +-----+                             +----+
   ```
-  Example for REGEX `[^0-9p]`:
+  Example for REGEX `[^0-9p]`, where 
+  `BeginPeek` and `EndPeek` are labelled with `[^` and `^]`.
   
   ![Negated character class](images/[^0-9p].png)
-  
-  The `BeginPeek` node is labelled with `[^`
-  and `EndPeek` node is labelled with `^]`.
   
 #### Alternate Choice
 
@@ -304,22 +301,21 @@ with `Split` process _S_ :
                 -| Pn |---> outputs
                  +----+
 ```
-  Example for REGEX `a|b|c|d`:
+  Example for REGEX `a|b|c|d`, where the `Split` node 
+  for alternate choice is labelled with `|`.
   
   ![Alternate choice](images/a_vbar_b_vbar_c_vbar_d.png)
   
-  The `Split` node for alternate choice is labelled with `|`.
 
 Character classes `[...]` are implemented as alternate choices
 for all the enclosed characters, character ranges and character properties.
 
-  Example for REGEX `[a-dZ]`:
+  Example for REGEX `[a-dZ]`, where the `Split` node 
+  for a positive character class is labelled with `[]`.
   
   ![Character class](images/[a-dZ].png)
   
-  The `Split` node for a positive character class is labelled with `[]`.
-  
-Example of a choice between two groups with REGEX `(ab)|(cd)`:
+Combined example of a choice between two groups with REGEX `(ab)|(cd)`:
   
   ![Character class](images/(ab)_vbar_(cd).png)
 
@@ -340,7 +336,8 @@ Combinator for _zero or one_ repetitions `P?`.
         +---+
 ```
 
-  Example for REGEX `t?`:
+  Example for REGEX `t?`, where the `Split` node 
+  for the zero-or-one quantifier is labelled with `?`.
   
   ![Zero or one](images/t_qmark.png)
 
@@ -359,9 +356,11 @@ The new network only has one output from the split node.
         | S |---> output
         +---+
 ```
-  Example for REGEX `j+`:
+  Example for REGEX `j+`, where the `Split` node 
+  for the one-or-more quantifier is labelled with `+`.
   
   ![One or more](images/j+.png)
+  
   
 Combinator for _zero or more_ repetitions `P*`.
 
@@ -379,13 +378,14 @@ The new network only has one output from the split node.
  in --->| S |---> output
         +---+
 ```
-  Example for REGEX `m*`:
+  Example for REGEX `m*`, where the `Split` node 
+  for zero-or-more quantifier is labelled with `*`.
   
   ![Zero or more](images/m_star.png)
   
 ### Interface Processes
   
-There are two process used for the 
+There are 2 process used for the 
 overall input and output of the NFA process network:
 * `Start` - the initial process where strings are injected for matching.
 * `Success` - the final process where successful matches are emitted.
