@@ -371,6 +371,12 @@ defmodule Myrex.MyrexTest do
       exec(:match, re_nfa, "abcd", {:match, %{2 => {2, 2}}}, [{:capture, [2]} | opts])
 
       Myrex.teardown(re_nfa)
+
+      # just to create diagram for the docs
+      re = "(ab)|(cd)"
+      re_nfa = build(re, unquote(mode))
+      exec(:match, re_nfa, "ab", :match)
+      Myrex.teardown(re_nfa)
     end
 
     test "group named duplicate capture test #{mode}" do
