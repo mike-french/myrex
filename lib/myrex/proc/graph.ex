@@ -196,6 +196,7 @@ defmodule Myrex.Proc.Graph do
     end)
     |> IO.chardata_to_string()
     |> String.slice(0, 250)
+    |> String.trim("_")
   end
 
   # convert a PID to a unique ID

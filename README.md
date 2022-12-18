@@ -395,6 +395,8 @@ by spawning and connecting child processes.
 The child processes are _linked_ to the `Start` process,
 so the whole network can be torn down after use, or on error.
 
+The `Success` node is labelled with `end` in the NFA graph diagrams.
+
 The process network has a lifecycle based on _batch_ or _oneshot_ patterns.
 
 ### Execution Process
@@ -449,7 +451,7 @@ The `*` node receives `2"b"`, duplicates it to make `4"b"`
 and sends them to its outputs.
 The `Executor` is notified of each copy to increment the total count.
 
-The Success `End` node receives `1"ab"` and `2"b"`, 
+The Success `end` node receives `1"ab"` and `2"b"`, 
 but these are not all consumed, so it notifies the `Executor`
 to decrement the total count for failed matches.
 
@@ -464,7 +466,7 @@ sends them to its outputs, and notifies the `Executor` of the extra traversal.
 The `b` node receives the empty string, which does not match,
 so it notifies the `Executor` to decrement the total count for a failed match.
 
-The Success `End` node receives `4""`, which is the empty string,
+The Success `end` node receives `4""`, which is the empty string,
 so it notifies the `Executor` of a complete successful match.
 The `Executor` reports a match result and terminates.
 
