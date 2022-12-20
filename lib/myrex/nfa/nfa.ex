@@ -23,7 +23,7 @@ defmodule Myrex.NFA do
 
   Character classes: alternate or sequence
   { :char_class, [CCs]      -->  { Split, [CCs] }
-  { :char_class_neg, [CCs]  -->  { BeginPeek, EndPeek }
+  { :char_class_neg, [CCs]  -->  { BeginNegCC, EndNegCC }
 
   Atomic
     c                        MatchChar(c)
@@ -34,9 +34,9 @@ defmodule Myrex.NFA do
   alias Myrex.Types, as: T
 
   alias Myrex.NFA.BeginGroup
-  alias Myrex.NFA.BeginPeek
+  alias Myrex.NFA.BeginNegCC
   alias Myrex.NFA.EndGroup
-  alias Myrex.NFA.EndPeek
+  alias Myrex.NFA.EndNegCC
   alias Myrex.NFA.Match
   alias Myrex.NFA.Split
   alias Myrex.Proc.Proc
@@ -179,18 +179,18 @@ defmodule Myrex.NFA do
   The peeking Match nodes are created by a negated character class.
 
   ```
-          +--+             +--+    +-----+
-   in --->|M1|---> ... --->|Mn|--->| End |---> out
-          +--+             +--+    | AND |
-                                   +-----+
+          +-----+    +--+             +--+    +-----+
+   in --->|Begin|--->|M1|---> ... --->|Mn|--->|End  |---> out
+          |NegCC|    +--+             +--+    |NegCC|
+          +-----+                             +-----+
   ```
   """
 
-  @spec peek_sequence(T.procs()) :: T.proc()
+  @spec negcc_sequence(T.procs()) :: T.proc()
 
-  def peek_sequence(procs) when is_list(procs) do
-    begin = BeginPeek.init(nil)
-    enddd = EndPeek.init(nil)
+  def negcc_sequence(procs) when is_list(procs) do
+    begin = BeginNegCC.init(nil)
+    enddd = EndNegCC.init(nil)
     sequence([begin | procs] ++ [enddd])
   end
 

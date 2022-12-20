@@ -1,7 +1,7 @@
-defmodule Myrex.NFA.BeginPeek do
+defmodule Myrex.NFA.BeginNegCC do
   @moduledoc """
-  The process at the start of an AND NOT peek lookahead sequence.
-  Only a negated character class uses a peek sequence.
+  The process at the start of negated character class.
+  A negated character class uses an AND NOT sequence of peek lookahead.
   """
 
   import Myrex.Types

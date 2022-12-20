@@ -1,7 +1,7 @@
-defmodule Myrex.NFA.EndPeek do
+defmodule Myrex.NFA.EndNegCC do
   @moduledoc """
-  The process at the end of an AND NOT peek lookahead sequence.
-  Only a negated character class uses a peek sequence.
+  The process at the end of negated character class.
+  A negated character class uses an AND NOT sequence of peek lookahead.
   """
 
   alias Myrex.Proc.PNode

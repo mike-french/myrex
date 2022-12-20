@@ -375,7 +375,7 @@ defmodule Myrex.MyrexTest do
       # just to create diagram for the docs
       re = "(ab)|(cd)"
       re_nfa = build(re, unquote(mode))
-      exec(:match, re_nfa, "ab", :match)
+      exec(:match, re_nfa, "ab", {:match, %{1 => "ab"}})
       Myrex.teardown(re_nfa)
     end
 

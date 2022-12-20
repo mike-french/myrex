@@ -236,7 +236,7 @@ to implement parts of the AST as process subgraphs:
   use `Split` to clone (fan out) traversals 
   across 2 or more downstream subgraphs.
 * Groups use `BeginGroup` and `EndGroup` to record captures.
-* Negated character classes use `BeginPeek` and `EndPeek` to 
+* Negated character classes use `BeginNegCC` and `EndNegCC` to 
   advance the input after a sequence of peek lookahead matches.
 * Leaf nodes use `Match` with an _acceptor_ function
   to do the actual matching of individual characters, 
@@ -264,7 +264,8 @@ in --->|Begin|--->| P1 |---> ... --->| Pn |--->| End |---> out
   
   ![Group capture](images/(ab).png)
 
- Combinator for an AND NOT sequence of peek lookahead 
+ Combinator for a negated character class. 
+ The sequence evaluates AND NOT for peek lookahead 
  matching nodes  `M1 M2 .. Mn`.
  The peeking nodes are created in a negated character class,
  where all negative tests must pass for the first character of input,
@@ -273,13 +274,13 @@ in --->|Begin|--->| P1 |---> ... --->| Pn |--->| End |---> out
  the character is consumed from input.
 
   ```
-          +-----+    +--+             +--+    +----+
-   in --->|Begin|--->|M1|---> ... --->|Mn|--->|End |---> out
-          |Peek |    +--+             +--+    |Peek|
-          +-----+                             +----+
+          +-----+    +--+             +--+    +-----+
+   in --->|Begin|--->|M1|---> ... --->|Mn|--->|End  |---> out
+          |NegCC|    +--+             +--+    |NegCC|
+          +-----+                             +-----+
   ```
   Example for REGEX `[^0-9p]`, where 
-  `BeginPeek` and `EndPeek` are labelled with `[^` and `^]`.
+  `BeginNegCC` and `EndNegCC` are labelled with `[^` and `^]`.
   
   ![Negated character class](images/[^0-9p].png)
   
