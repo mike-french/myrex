@@ -14,7 +14,7 @@ using a variation of the _Shunting Yard_ parsing algorithm
 \[[Wikipedia](https://en.wikipedia.org/wiki/Shunting_yard_algorithm)\].
 
 The AST is used to build a _Non-deterministic Finite Automaton_ (NFA)
-using a variation of _Thompson's Algorithm_
+using a variation of _Thompson's Construction
 \[[Wikipedia](https://en.wikipedia.org/wiki/Thompson%27s_construction)\]
 \[[Cox](https://swtch.com/~rsc/regexp/regexp1.html)\].
 
@@ -30,7 +30,8 @@ along _all_ these outgoing edges at once.
 All possible traversals are explored in parallel.
 Processes implementing rules that do not match the input 
 cause the traversal to terminate. A traversal that reaches the 
-final process returns a successful match of the input.
+final process having consumed all the input 
+returns a successful match of the input.
 
 The runtime execution of the process network depends on
 the Erlang BEAM scheduler being _fair,_
@@ -78,7 +79,7 @@ Matching an input string against a REGEX:
   * Report the result and halt the manager process.
 
 Two execution patterns:
-* Batch - single network processes multiple input strings simultaneously.
+* Batch - single long-lived network matches multiple input strings simultaneously.
 * Oneshot - dedicated independent network is built and torn down for each input. 
 
 Two traversal strategies for ambiguous matches:
@@ -183,7 +184,7 @@ or traversal control processes. Network edges carry traversal _state_ messages.
 A node matches or transforms incoming messages with the node rule.
 If there is a successful match, 
 the traversal continues through _all_ outgoing edges. 
-If there a match is unsuccessful, a termination _no match_ 
+If the match is unsuccessful, a termination _no match_ 
 message is sent to the manager process.
 
 ### Traversals
@@ -220,14 +221,14 @@ Each message contains the traversal state for the match:
 
 ### Combinators
 
-The NFA is built using a variation of Thompson's Algorithm 
-based on process _combinators._
+The NFA is built using a variation of Thompson's Construction 
+implemented by proess _combinators._
 A combinator is a function that takes one or more process subgraphs
 and combines them into a single larger graph.
 Process combinators correspond to AST branch nodes.
 Combinators recursively build larger networks
 from smaller operator subgraphs, 
-grounded in atomic character matchers
+grounded in atomic character matchers in AST leaf nodes
 \[[Cox](https://swtch.com/~rsc/regexp/regexp1.html)\].
 
 There are 6 processes used by combinators
@@ -241,8 +242,24 @@ to implement parts of the AST as process subgraphs:
 * Leaf nodes use `Match` with an _acceptor_ function
   to do the actual matching of individual characters, 
   character ranges and character properties.
+
+### Interface Processes
   
-#### Sequence and Group
+There are 2 process used for the 
+overall input and output of the NFA process network:
+* `Start` - the initial process where strings are injected for matching.
+* `Success` - the final process where successful matches are emitted.
+
+The `Start` process also implements construction of the NFA
+by spawning and connecting child processes. 
+The child processes are _linked_ to the `Start` process,
+so the whole network can be torn down after use, or on error.
+
+The `Success` node is labelled with `end` in the NFA graph diagrams.
+
+The process network has a lifecycle based on _batch_ or _oneshot_ patterns.
+
+### Sequence and Group
 
 Combinator for a sequence of process networks `P1 P2 .. Pn`:
 
@@ -279,12 +296,12 @@ in --->|Begin|--->| P1 |---> ... --->| Pn |--->| End |---> out
           |NegCC|    +--+             +--+    |NegCC|
           +-----+                             +-----+
   ```
-  Example for REGEX `[^0-9p]`, where 
+  Example for REGEX `[^0-9p]`, where `Success` is labelled with 'end' and 
   `BeginNegCC` and `EndNegCC` are labelled with `[^` and `^]`.
   
   ![Negated character class](images/[^0-9p].png)
   
-#### Alternate Choice
+### Alternate Choice
 
 Combinator for fan-out of alternate matches `P1 | P2 | .. | Pn`
 with `Split` process _S_ :
@@ -320,7 +337,7 @@ Combined example of a choice between two groups with REGEX `(ab)|(cd)`:
   
   ![Character class](images/(ab)_vbar_(cd).png)
 
-#### Quantifiers
+### Quantifiers
 
 Combinator for _zero or one_ repetitions `P?`.
 
@@ -383,22 +400,6 @@ The new network only has one output from the split node.
   for zero-or-more quantifier is labelled with `*`.
   
   ![Zero or more](images/m_star.png)
-  
-### Interface Processes
-  
-There are 2 process used for the 
-overall input and output of the NFA process network:
-* `Start` - the initial process where strings are injected for matching.
-* `Success` - the final process where successful matches are emitted.
-
-The `Start` process also implements construction of the NFA
-by spawning and connecting child processes. 
-The child processes are _linked_ to the `Start` process,
-so the whole network can be torn down after use, or on error.
-
-The `Success` node is labelled with `end` in the NFA graph diagrams.
-
-The process network has a lifecycle based on _batch_ or _oneshot_ patterns.
 
 ### Execution Process
 
@@ -483,7 +484,7 @@ Some regular expressions are ambiguous and
 may have multiple possible captures for a successful match.
 
 The outcome for ambiguous expressions is usually 
-determined by the operators being _greedy_ or _non-greedy._
+determined by the quantifier operators being _greedy_ or _non-greedy._
 The Myrex implementation has local atomic operators 
 that execute in parallel as an NFA, so they cannot choose 
 _greedy_ or _non-greedy_ behaviour.
@@ -514,20 +515,22 @@ all failure traversals to finish.
 
 ### Ambiguous Example
 
-Consider a regex of the form `(a?){n}(a*){n}` 
-matching a string of _n_ copies of the `a` character.
+Consider a regex of the form `(a?){m}(a*){m}` 
+matching a string of _m_ copies of the `a` character.
 (a highly ambiguous exaggeration from the example in
 \[[Cox](https://swtch.com/~rsc/regexp/regexp1.html)\]).
 
-The number of matches, _S(n),_ is calculated by a 
+The number of matches, _S(m),_ is calculated by a 
 dot product of two vectors sliced from Pascal's Triangle 
 (see the tech note \[[pdf](MultipleMatchRegex.pdf)\] for a proof sketch).
 
-$$S(n) \hspace{1em} = \hspace{1em} \sum_{k=0}^n {}^{n}C_{k} \times {}^{n+k-1}C_{k} \hspace{1em} = \hspace{1em} \sum_{k=0}^n \binom{n}{k} \times \binom{n+k-1}{k}$$
+$$S(m) \hspace{1em} = \hspace{1em} \sum_{k=0}^m {}^{m}C_{k} \times {}^{m+k-1}C_{k} \hspace{1em} = \hspace{1em} \sum_{k=0}^m \binom{m}{k} \times \binom{m+k-1}{k}$$
 
-Notice that $n+k-1$ is the _row_ index (as shown in the diagram below).
+Notice in the diagram below 
+that $n=m+k-1$ indexes the _row_ 
+and $n=m$ indexes the _diagonal.
 
-These are specific examples for `n=3` and `n=4`:
+Here are specific examples for `m=3` and `m=4`:
 
 ```
 S(3) =   [1,3,3,1] * [1,3,6,10]     =   1+9+18+10   =  38
@@ -539,14 +542,14 @@ S(4) = [1,4,6,4,1] * [1,4,10,20,35] = 1+16+60+80+35 = 192
   <img src="images/pascals-triangle-3-4-small.png"/>
 </p>
 
-Here is the number of traversals _S(n)_ for each value of _n,_
+These are the numbers of traversals _S(m)_ for each value of _m,_
 and the elapsed time  for _one_ and _all_ matches in seconds, 
 except for the ~0 timings, which are less than 1 microsecond:
 
 
-|  n      | 1 | 2 |  3 |   4 |     5 |     6 |         7 |         8 |       9 |
+|  m      | 1 | 2 |  3 |   4 |     5 |     6 |         7 |         8 |       9 |
 |---------|---|---|----|-----|-------|-------|-----------|-----------|---------|
-| S(n)    | 2 | 8 | 38 | 192 | 1,002 | 5,336 |    28,814 |   157,184 | 864,146 |
+| S(m)    | 2 | 8 | 38 | 192 | 1,002 | 5,336 |    28,814 |   157,184 | 864,146 |
 | t _one_ |   |   |    |     |       |       | < 1 &mu;s | < 1 &mu;s | 0.015 s |
 | t _all_ |   |   |    |     |       |       |   0.250 s |   1.485 s | 9.625 s |
 
@@ -599,7 +602,7 @@ DOT format \[[pdf](https://www.graphviz.org/pdf/dotguide.pdf)\],
 and optionally generate PNG images if you have GraphViz installed.
 
 The test suite will write graphs for all compiled REGEXes.
-DOT and PNG files are written to the `dot` subdirectory by default.
+The DOT and PNG output files are written to the `dot` subdirectory by default.
 
 The images of NFAs in this README were auto-generated from tests. 
 
@@ -632,7 +635,7 @@ nfa = Myrex.compile("(ab)|(cd)")
 :teardown = Myrex.teardown(nfa)
 
 ```
-The ignored output value `'_'` contains the detaild capture results.
+The ignored output value `'_'` contains the detailed capture results.
 
 ### Options
 
@@ -690,27 +693,23 @@ never a reference `{0,length}`.
 * `nil` (default) - no graph output.
 * `:re` - use the REGEX as the filename, with suitable escaping and truncation.
 * _filename_ (string) - the filename to use.
-  
-### Examples
-
-`TODO`
 
 ## Performance
 
 There is a performance trade-off for _batch v. onshot.
 
-Batch:_
+Batch:
 * No overhead for creating or destroying the NFA (amortized across many inputs).
-* The same network can be used to match other input strings concurrently.
-* The NFA will be distributed across cores, which may increase hardware communication.
-* There may be zombie traversals running after an execution in _one_ mode has finished.
+* The same network can be used to match many input strings concurrently.
+* The NFA will be distributed across cores, which will increase execution speed,
+  but may also increase hardware communication costs.
+* There may be zombie traversals still running 
+  after an execution in _one_ mode has finished.
 
 Oneshot:
 * Overhead for creating and destroying an NFA (small for Erlang).
-* For a small number of inputs, it may allow each NFA to run locally on one core.
+* It may allow each NFA to run locally on one core.
 * All activity is definitely stopped after the first successful match in _one_ mode.
-
-`TODO`
 
 ## Project 
 
