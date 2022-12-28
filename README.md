@@ -696,7 +696,7 @@ never a reference `{0,length}`.
 
 ## Performance
 
-There is a performance trade-off for _batch v. onshot.
+There is a performance trade-off for batch v. oneshot.
 
 Batch:
 * No overhead for creating or destroying the NFA (amortized across many inputs).
