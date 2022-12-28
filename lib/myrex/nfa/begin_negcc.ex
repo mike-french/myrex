@@ -28,7 +28,7 @@ defmodule Myrex.NFA.BeginNegCC do
   @impl PNode
   def run(nil, next) do
     receive do
-      state when T.is_state(state) ->
+      state when T.is_par_state(state) ->
         # beginning a peek sequence is a no-op for parsing
         Proc.traverse(next, state)
 

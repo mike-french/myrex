@@ -80,7 +80,7 @@ defmodule Myrex.NFA.Start do
   @impl PNode
   def run(nil, nfa) do
     receive do
-      state when T.is_state(state) -> Proc.traverse(nfa, state)
+      state when is_tuple(state) -> Proc.traverse(nfa, state)
       :teardown -> exit(:normal)
       msg -> raise RuntimeError, message: "Unhandled message #{inspect(msg)}"
     end

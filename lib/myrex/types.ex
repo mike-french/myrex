@@ -140,6 +140,17 @@ defmodule Myrex.Types do
                       (elem(r, 0) == :no_match or elem(r, 0) == :searches)) or
                      (tuple_size(r) == 3 and elem(r, 0) == :search))
 
+  @typedoc """
+  The result of generating a string for the regular expression.
+
+  # If the `:multiple` option is `:one`, then a successful result is a single `:search`.
+  # If the `:multiple` option is `:all`, then a successful result is `:searches`
+  # with a list of indexed captures, even if the list just has one member.
+  """
+  @type generate_result() :: {:generate, String.t()}
+
+  defguard is_gen_result(r) when is_tuple(r) and tuple_size(r) == 2 and elem(r, 0) == :generate
+
   # ------------
   # lexer tokens
   # ------------
@@ -237,6 +248,9 @@ defmodule Myrex.Types do
   @typedoc "A function that matches a single character."
   @type acceptor() :: (char() -> boolean())
 
+  @typedoc "A function that generates a single character."
+  @type generator() :: (() -> char())
+
   @typedoc """
   A stack of open groups.
   Each group is represented by the name and start position.
@@ -252,6 +266,15 @@ defmodule Myrex.Types do
   The executor is the process for reporting changes in the 
   message count and the final result of match or no match.
   """
-  @type state() :: {:parse, String.t(), position(), groups(), captures(), executor :: pid()}
-  defguard is_state(s) when is_tuple(s) and tuple_size(s) == 6 and elem(s, 0) == :parse
+  @type par_state() :: {:parse, String.t(), position(), groups(), captures(), executor :: pid()}
+  defguard is_par_state(s) when is_tuple(s) and tuple_size(s) == 6 and elem(s, 0) == :parse
+
+  @typedoc """
+  Generator traversal state passed as a message between NFA nodes.
+
+  The executor is the process for reporting changes in the 
+  message count and the final result of match or no match.
+  """
+  @type gen_state() :: {:generate, String.t(), generator :: pid()}
+  defguard is_gen_state(s) when is_tuple(s) and tuple_size(s) == 3 and elem(s, 0) == :generate
 end

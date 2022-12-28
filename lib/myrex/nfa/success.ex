@@ -2,6 +2,7 @@ defmodule Myrex.NFA.Success do
   @moduledoc "The final node that handles a successful match."
 
   alias Myrex.Executor
+  alias Myrex.Generator
   alias Myrex.Proc.PNode
   alias Myrex.Proc.Proc
 
@@ -43,6 +44,10 @@ defmodule Myrex.NFA.Success do
         # so NFA matches a prefix of the original input
         # for a normal match, this is a no_match failure
         Executor.notify_result(executor, :no_match)
+
+      {:generate, str, generator} ->
+        # finish state of the NFA with completed string
+        Generator.notify_result(generator, {:generate, str})
 
       msg ->
         raise RuntimeError, message: "Unhandled message #{inspect(msg)}"

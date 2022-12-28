@@ -8,6 +8,7 @@ defmodule Myrex do
 
   alias Myrex.Compiler
   alias Myrex.Executor
+  alias Myrex.Generator
   alias Myrex.NFA.Start
 
   @doc """
@@ -42,6 +43,49 @@ defmodule Myrex do
   end
 
   @doc """
+  Generate an example string for a regular expression.
+
+  # The first argument can be either a regular expression string,
+  # or the start process address of a compiled NFA process network.
+
+  # If the `:multiple` option is `:one`, 
+  # then the first match to complete is returned with a `:match` result tuple.
+  #   If the `:multiple` option is `:all`, 
+  # then all matches are returned with a `:matches` result tuple.
+
+  # If a regular expression is passed as a string argument, 
+  # it is compiled to a one-shot NFA process network, 
+  # which is torn down after the string match has completed.
+  # The options passed affect both the compile-time and run-time behaviour.
+
+  # If a compiled NFA is passed as a process argument,
+  # the options passed for batch execution
+  # only affect the runtime behaviour.
+  """
+  @spec generate(String.t() | pid(), Keyword.t()) :: String.t()
+
+  def generate(re, opts \\ [])
+
+  def generate(re, opts) when is_binary(re) and is_list(opts) do
+    # oneshot execution
+    # the generator will compile, run and teardown the NFA process network
+    validate_options(opts)
+    Process.flag(:trap_exit, true)
+    Generator.init_oneshot(re, opts)
+    do_gen(opts)
+  end
+
+  @spec do_gen(T.options()) :: no_return()
+  defp do_gen(opts) do
+    receive do
+      {:generate, str} -> str
+      {:EXIT, _, :normal} -> do_gen(opts)
+      {:EXIT, _, reason} -> raise RuntimeError, message: "Execution failed: #{inspect(reason)}"
+      msg -> raise RuntimeError, message: "Unhandled message #{inspect(msg)}"
+    end
+  end
+
+  @doc """
   Search for a regular expression pattern in an input string.
 
     The first argument can be either a regular expression string,
@@ -66,8 +110,6 @@ defmodule Myrex do
   and continues to be repeated until the end of the string.
   The prefix subgraph is torn down at the end of the operation,
   but the original NFA is not affected.
-
-  When there
   """
   @spec search(T.regex() | pid(), String.t(), Keyword.t()) :: T.search_result()
 

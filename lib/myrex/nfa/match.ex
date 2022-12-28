@@ -8,7 +8,8 @@ defmodule Myrex.NFA.Match do
   @behaviour PNode
 
   @impl PNode
-  def init({accept?, peek?} = args, label) when is_function(accept?, 1) and is_boolean(peek?) do
+  def init({accept?, peek?, genfun} = args, label)
+      when is_function(accept?, 1) and is_boolean(peek?) and is_function(genfun) do
     Proc.init_child(__MODULE__, :attach, [args], label)
   end
 
@@ -21,7 +22,7 @@ defmodule Myrex.NFA.Match do
   end
 
   @impl PNode
-  def run({accept?, peek?} = args, next) do
+  def run({accept?, peek?, genfun} = args, next) do
     receive do
       {:parse, <<c::utf8, rest::binary>> = all, pos, groups, captures, executor} ->
         if accept?.(c) do
@@ -35,6 +36,11 @@ defmodule Myrex.NFA.Match do
       {:parse, "", _, _, _, executor} ->
         # end of input
         Executor.notify_result(executor, :no_match)
+
+      {:generate, str, generator} ->
+        char = genfun.()
+        new_str = <<str::binary, char::utf8>>
+        Proc.traverse(next, {:generate, new_str, generator})
 
       msg ->
         raise RuntimeError, message: "Unhandled message #{inspect(msg)}"

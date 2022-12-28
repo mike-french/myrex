@@ -233,6 +233,12 @@ defmodule Myrex.NFA do
   ```
   """
   @spec alternate(T.procs(), String.t()) :: T.proc()
+
+  def alternate([proc], _name) do
+    # Hobson's choice 
+    proc
+  end
+
   def alternate(procs, name) do
     split = Split.init({procs}, name)
     {split, Proc.outputs(procs)}
@@ -246,8 +252,9 @@ defmodule Myrex.NFA do
   @spec match_char(char(), T.sign()) :: pid()
   def match_char(char, ccsign \\ :pos) when is_atom(ccsign) do
     accept? = inv(fn c -> c == char end, inv_sign(:pos, ccsign))
+    genfun = fn -> char end
     # negation turns Match into peek look ahead
-    Match.init({accept?, peek_sign(ccsign)}, caret(char, ccsign))
+    Match.init({accept?, peek_sign(ccsign), genfun}, caret(char, ccsign))
   end
 
   @doc """
@@ -262,7 +269,7 @@ defmodule Myrex.NFA do
     # anychar wildcard '.' not allowed in negated character class?
     accept? = inv(fn c -> dotall? or c != ?\n end, inv_sign(:pos, ccsign))
     # negation turns Match into peek look ahead
-    Match.init({accept?, peek_sign(ccsign)}, caret(?., ccsign))
+    Match.init({accept?, peek_sign(ccsign), nil}, caret(?., ccsign))
   end
 
   @doc "Match any character in the range between two characters (inclusive)."
@@ -270,8 +277,9 @@ defmodule Myrex.NFA do
   def match_char_range({c1, c2} = cr, ccsign \\ :pos)
       when is_char_range(cr) and is_atom(ccsign) do
     accept? = inv(fn c -> c1 <= c and c <= c2 end, inv_sign(:pos, ccsign))
+    genfun = fn -> Enum.random(c1..c2) end
     # negation turns Match into peek look ahead
-    Match.init({accept?, peek_sign(ccsign)}, caret(c1, c2, ccsign))
+    Match.init({accept?, peek_sign(ccsign), genfun}, caret(c1, c2, ccsign))
   end
 
   @doc "Match a character to a unicode block, category or script."
@@ -296,7 +304,7 @@ defmodule Myrex.NFA do
 
     # negation turns consuming match into peek look ahead
     inv? = inv_sign(sign, ccsign)
-    Match.init({inv(accept?, inv?), peek_sign(ccsign)}, "\\\\p{#{Atom.to_string(prop)}}")
+    Match.init({inv(accept?, inv?), peek_sign(ccsign), nil}, "\\\\p{#{Atom.to_string(prop)}}")
   end
 
   # test atom to be equal or prefix of another atom
@@ -339,4 +347,7 @@ defmodule Myrex.NFA do
 
   # quote a character
   defp chr(c), do: [?', c, ?']
+
+  # random character from a range
+  defp rand_char(c1, c2) when c2 > c1, do: c1 + :rand.uniform(c2 - c1 + 1) - 1
 end
