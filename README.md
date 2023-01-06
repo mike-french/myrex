@@ -1,7 +1,8 @@
 
 # myrex - MY Regular Expressions in eliXir
 
-An Elixir library for matching strings against regular expressions (REGEX).
+An Elixir library for matching strings against regular expressions (REGEX),
+or generating strings that match the regular expression.
 
 The implementation is based on the idea of _Process Oriented Programming:_ 
 * Algorithms are implemented using a fine-grain directed graph of 
@@ -14,7 +15,7 @@ using a variation of the _Shunting Yard_ parsing algorithm
 \[[Wikipedia](https://en.wikipedia.org/wiki/Shunting_yard_algorithm)\].
 
 The AST is used to build a _Non-deterministic Finite Automaton_ (NFA)
-using a variation of _Thompson's Construction
+using a variation of _Thompson's Construction_ 
 \[[Wikipedia](https://en.wikipedia.org/wiki/Thompson%27s_construction)\]
 \[[Cox](https://swtch.com/~rsc/regexp/regexp1.html)\].
 
@@ -28,10 +29,11 @@ Traversals are duplicated by sending messages
 along _all_ these outgoing edges at once.
 
 All possible traversals are explored in parallel.
-Processes implementing rules that do not match the input 
-cause the traversal to terminate. A traversal that reaches the 
-final process having consumed all the input 
-returns a successful match of the input.
+A traversal will terminate if a process applies
+a rule that does not match the input.
+A traversal that reaches the final process 
+after consuming all the input, 
+will return a successful match of the input.
 
 The runtime execution of the process network depends on
 the Erlang BEAM scheduler being _fair,_
@@ -102,6 +104,11 @@ Binary Data:
 Utility to generate diagrams of NFA process networks
 in [GraphViz](https://www.graphviz.org) DOT format
 and convert them to PNG images.
+
+Generators that use traversals of the NFA 
+to create strings that match the regular expression.
+The same NFA is used for parsing and generating.
+An NFA network can parse and generate strings concurrently.
 
 ### Captures
 
@@ -595,7 +602,61 @@ as new traversals of the prefixed NFA network.
 The search `Executor` tears down the transient prefix subgraph
 at the end of execution, but the main NFA is not changed.
 
-### Graph Output
+## Generators
+
+The NFA can also _generate_ strings that match the regular expression.
+
+The same NFA is used for parsing and generation.
+Each process has separate rules for handling parser and generator traversals.
+Generation uses a simple traversal state message type:
+* The string being generated (as a binary).
+* A client process return address for the result.
+
+There is a transient `Generator` process to manage individual _generate_ requests.
+The `Generator` is equivalent to the `Executor` for parsing. 
+
+There is only ever one generator traversal active in the process network
+for each _generate_ request. The `Generator` does not have tally messages 
+for adding or removing traversals.
+
+The semantics for generation are quite simple:
+* `Match` nodes add a random character drawn from their character repertoire,
+  such as fixed character, character range or character property.
+* `Split` nodes propagate the generator traversal 
+  to exactly one of their output edges chosen at random.
+* Groups are ignored for string generation,
+  so `BeginGroup` and `EndGroup` are no-ops, 
+  which pass through the generator message unchanged.
+  
+In future, the `Split` node for alternatice choice,
+will weight the choice of output edges 
+based on the number of characters in the repertoire of the alternatives.
+
+When the `Split` node is used for quantifiers, 
+making a random choice between outputs means:
+* `?` bounded optional choice has 50:50 chance for zero or one.
+* `+` and `*` unbounded _more_ sequences decay exponentially
+  as $(1/2)^{n}$ for the $n^{th}$ step.
+  
+For example, the `*` quantifier has 0.5 chance of zero, 
+0.25 chance of 1, 0.125 chance of 2, _etc._
+
+In future, the `Split` node for quantifiers,
+will weight the choice of continuing or terminating
+based on a parameter passed in an option argument. 
+
+Although quantification is technically unbounded, 
+the exponential decay will usually result in a small finite sequence, 
+so all generator traversals will reach the `Success` node.
+
+However, in the current implementation, there will
+be a failure if a step that fails to generate a character:
+* The negated _Any_ character property `\P{Any}`
+  cannot be used in a normal sequence or positive character class.
+* The _any character_ wildcard `.` and _Any_ character property `\p{Any}`
+  cannot be used in a negated character class. 
+
+## Graph Output
 
 The NFA can be dumped to [GraphViz](https://www.graphviz.org) 
 DOT format \[[pdf](https://www.graphviz.org/pdf/dotguide.pdf)\], 
