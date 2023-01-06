@@ -5,50 +5,66 @@ defmodule Myrex.GeneratorTest do
 
   test "gen char test" do
     set_dump(true)
-    do_gen("a")
-    do_gen("aabb")
+    do_gen("a", ["a"])
+    do_gen("aabb", ["aabb"])
     set_dump(false)
   end
 
   test "gen char range test" do
     set_dump(true)
-    do_gen("[a-z]")
-    do_gen("[0-9]")
-    do_gen("[abc0-9]")
+    do_gen("[a-h]", ["a", "b", "c", "d", "e", "f", "g", "h"])
+    do_gen("[0-9]", ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"])
+    do_gen("[abc0-9]", ["a", "b", "c", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"])
     set_dump(false)
   end
 
-  # test "par any test" do
-  #   do_par(".", :any_char)
-  #   do_par("a.b", {:sequence, [?a, :any_char, ?b]})
-  # end
+  test "gen any test" do
+    set_dump(true)
+    do_gen(".")
+    do_gen("a.b")
+    do_gen(".?")
+    do_gen(".+")
+    do_gen(".*")
+    do_gen(".{5}")
+    do_gen("[.]")
+    # TODO - negated char classes
+    # assert_raise ArgumentError, fn -> do_gen("[^.]") end
+    # TODO - special case for property Any == . 
+    # assert_raise ArgumentError, fn -> do_gen("\\P{Any}") end
+    set_dump(false)
+  end
 
-  # test "par unicode property test" do
-  #   do_par("\\p{Mathematical Operators}", {:char_block, :pos, :mathematical_operators})
-  #   do_par("\\p{Lu}", [{:char_category, :pos, :Lu}])
-  #   do_par("\\p{Signwriting}", [{:char_script, :pos, :signwriting}])
-  # end
+  test "gen unicode property test" do
+    set_dump(true)
+    do_gen("\\p{Mathematical Operators}")
+    do_gen("\\p{Mathematical Operators}{5}")
 
-  # test "par quantifier test" do
-  #   do_par("a?", {:zero_one, ?a})
-  #   do_par("a+", {:one_more, ?a})
-  #   do_par("a*", {:zero_more, ?a})
+    do_gen("\\p{Lu}")
+    do_gen("\\p{Lu}{5}")
 
-  #   do_par("ba?c", {:sequence, [?b, {:zero_one, ?a}, ?c]})
-  #   do_par("b.+c", {:sequence, [?b, {:one_more, :any_char}, ?c]})
-  #   do_par("ba*c", {:sequence, [?b, {:zero_more, ?a}, ?c]})
+    do_gen("\\p{Signwriting}")
+    do_gen("\\p{Signwriting}{5}")
+    set_dump(false)
+  end
 
-  #   do_par("a?+", {:one_more, {:zero_one, ?a}})
-  #   do_par("a+*", {:zero_more, {:one_more, ?a}})
-  #   do_par("a*?", {:zero_one, {:zero_more, ?a}})
+  test "gen quantifier test" do
+    set_dump(true)
+    do_gen("a?")
+    do_gen("a+")
+    do_gen("a*")
 
-  #   bad_par("*a")
-  #   bad_par("?b")
-  #   bad_par("+c")
-  # end
+    do_gen("ba?c")
+    do_gen("ba+c")
+    do_gen("ba*c")
+
+    do_gen("ba{2}c", ["baac"])
+    do_gen("ba{3}c", ["baaac"])
+    do_gen("ba{5}c", ["baaaaac"])
+    set_dump(false)
+  end
 
   # test "par class test" do
-  #   do_par("[A-Z]", {:char_class, :pos, [{:char_range, ?A, ?Z}]})
+  #   do_gen("[A-Z]", {:char_class, :pos, [{:char_range, ?A, ?Z}]})
   #   do_par("[_A-Z!]", {:char_class, :pos, [?_, {:char_range, ?A, ?Z}, ?!]})
 
   #   # anychar allowed in character class? always passes
@@ -87,68 +103,57 @@ defmodule Myrex.GeneratorTest do
   #   bad_par("[^]")
   # end
 
-  # test "par extension classes" do
-  #   do_par("[\\p{Xan}]", {:char_class, :pos, [{:char_category, :pos, :Xan}]}, false)
-  #   do_par("[\\P{Xwd}]", {:char_class, :pos, [{:char_category, :neg, :Xwd}]}, false)
-  #   do_par("\\p{Xwd}", {:char_category, :pos, :Xwd}, false)
-  #   do_par("\\P{Xsp}", {:char_category, :neg, :Xsp}, false)
-  # end
+  test "gen extension classes" do
+    set_dump(true)
+    do_gen("\\p{Xwd}")
+    do_gen("\\P{Xsp}")
+    do_gen("[\\p{Xan}]")
+    do_gen("[\\P{Xwd}]")
+    set_dump(false)
+  end
 
-  # test "par group test" do
-  #   do_par("(a)", {:group, 1, [?a]})
-  #   do_par("(abc)", {:group, 1, [?a, ?b, ?c]})
-  #   do_par("(ab*c)", {:group, 1, [?a, {:zero_more, ?b}, ?c]})
+  test "gen group test" do
+    # groups do not affect generation
+    do_gen("(a)", ["a"])
+    do_gen("(abc)", ["abc"])
+    do_gen("(ab*c)")
 
-  #   do_par(
-  #     "(a)(bc)",
-  #     {:sequence,
-  #      [
-  #        {:group, 1, [?a]},
-  #        {:group, 2, [?b, ?c]}
-  #      ]}
-  #   )
+    do_gen("(a)(bc)", ["abc"])
 
-  #   do_par("((a))", {:group, 1, [{:group, 2, [?a]}]})
+    do_gen("((a))", ["a"])
 
-  #   do_par("(?:(ab))", {:group, :nocap, [{:group, 1, [?a, ?b]}]})
+    do_gen("(?:(ab))", ["ab"])
 
-  #   do_par("(?<foo>ab)", {:group, {1, "foo"}, [?a, ?b]})
-  #   do_par("(?<bar_99>ab)", {:group, {1, "bar_99"}, [?a, ?b]})
+    do_gen("(?<foo>ab)", ["ab"])
+    do_gen("(?<bar_99>ab)", ["ab"])
+  end
 
-  #   bad_par(")")
-  #   bad_par("(")
-  #   bad_par("()")
-  #   bad_par("((a)")
-  #   bad_par("(a))")
-  # end
+  test "gen repeat test" do
+    do_gen("a{3}", ["aaa"])
+    do_gen("(ab){7}", ["ababababababab"])
+  end
 
-  # test "par repeat test" do
-  #   do_par("a{3}", {:repeat, 3, ?a})
-  #   do_par("(ab){43}", {:repeat, 43, {:group, 1, [?a, ?b]}})
+  test "gen alt test" do
+    do_gen("a|b", ["a", "b"])
+    do_gen("ab|cd", ["ab", "cd"])
+    do_gen("(b|c)", ["b", "c"])
+    do_gen("a|b|c|d", ["a", "b", "c", "d"])
+  end
 
-  #   bad_par("{2}")
-  # end
-
-  # test "par alt test" do
-  #   do_par("a|b", {:alternate, [?a, ?b]})
-  #   do_par("ab|cd", {:alternate, [{:sequence, [?a, ?b]}, {:sequence, [?c, ?d]}]})
-  #   do_par("(b|c)", {:group, 1, [{:alternate, [?b, ?c]}]})
-  #   do_par("a|b|c|d", {:alternate, [?a, ?b, ?c, ?d]})
-
-  #   bad_par("|")
-  #   bad_par("a|")
-  #   bad_par("|b")
-  #   bad_par("(|)")
-  #   bad_par("a||b")
-  # end
-
-  defp do_gen(re) do
+  defp do_gen(re, outputs \\ nil) do
     newline()
-    dump(re, label: "RE   ")
+    dump(re, label: "RE    ")
 
     opts = []
     gen = Myrex.generate(re, opts)
+    dump(gen, label: "GEN   ")
 
-    dump(gen, label: "GEN  ")
+    # test for finite set of expected outputs
+    if outputs, do: assert(gen in outputs)
+
+    # every generated string should be correctly matched by the same NFA
+    match = Myrex.match(re, gen)
+    dump(match, label: "MATCH ")
+    assert {:match, _} = match
   end
 end

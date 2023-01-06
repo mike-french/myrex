@@ -211,11 +211,14 @@ defmodule Myrex.Types do
   """
   @type char_range() :: {:char_range, char(), char()}
 
+  @typedoc "The kinds of character property."
+  @type property_tag() :: :char_block | :char_category | :char_script
+
   @typedoc """
   A character property AST node that can be standalone leaf node,
   or within a character class AST node.
   """
-  @type char_property() :: {:char_block | :char_category | :char_script, sign(), atom()}
+  @type char_property() :: {property_tag(), sign(), atom()}
 
   @typedoc """
   A character class AST node that can be positive or negated.

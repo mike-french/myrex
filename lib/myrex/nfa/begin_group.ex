@@ -31,6 +31,10 @@ defmodule Myrex.NFA.BeginGroup do
         # push a begin group tuple onto the group stack
         Proc.traverse(next, {:parse, str, pos, [{name, pos} | groups], new_caps, executor})
 
+      {:generate, _str, _gen} = gen ->
+        # groups are ignored for generation
+        Proc.traverse(next, gen)
+
       msg ->
         raise RuntimeError, message: "Unhandled message #{inspect(msg)}"
     end

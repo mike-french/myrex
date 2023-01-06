@@ -32,6 +32,10 @@ defmodule Myrex.NFA.EndGroup do
         new_caps = Enum.reduce(T.names(name), caps, fn k, m -> Map.put(m, k, index) end)
         Proc.traverse(next, {:parse, str, pos, groups, new_caps, executor})
 
+      {:generate, _str, _gen} = gen ->
+        # groups are ignored for generation
+        Proc.traverse(next, gen)
+
       msg ->
         raise RuntimeError, message: "Unhandled message #{inspect(msg)}"
     end

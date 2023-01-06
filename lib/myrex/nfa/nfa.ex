@@ -40,6 +40,22 @@ defmodule Myrex.NFA do
   alias Myrex.NFA.Match
   alias Myrex.NFA.Split
   alias Myrex.Proc.Proc
+  alias Myrex.Uniset
+
+  # list of standard ascii whitespace characters
+  @whitespace [?\s, ?\n, ?\r, ?\t, ?\v, ?\f]
+
+  # uniset for all assigned characters
+  @all Uniset.new()
+
+  # uniset for alphanumeric characters
+  @xan Uniset.new(:char_category, :Xan)
+
+  # uniset for word characters
+  @xwd Uniset.new(:char_category, :Xwd)
+
+  # uniset for space and separator characters
+  @xsp Uniset.new(:char_category, :Xsp)
 
   # ----------------------------
   # quantifier combinators
@@ -251,10 +267,11 @@ defmodule Myrex.NFA do
   @doc "Match a specific character."
   @spec match_char(char(), T.sign()) :: pid()
   def match_char(char, ccsign \\ :pos) when is_atom(ccsign) do
-    accept? = inv(fn c -> c == char end, inv_sign(:pos, ccsign))
-    genfun = fn -> char end
+    inv? = inv_sign(:pos, ccsign)
+    accept? = inv(fn c -> c == char end, inv?)
+    generator = char |> Uniset.new() |> gen(inv?)
     # negation turns Match into peek look ahead
-    Match.init({accept?, peek_sign(ccsign), genfun}, caret(char, ccsign))
+    Match.init({accept?, peek_sign(ccsign), generator}, caret(char, ccsign))
   end
 
   @doc """
@@ -266,26 +283,40 @@ defmodule Myrex.NFA do
   """
   @spec match_any_char(boolean(), T.sign()) :: pid()
   def match_any_char(dotall?, ccsign \\ :pos) when is_atom(ccsign) do
-    # anychar wildcard '.' not allowed in negated character class?
-    accept? = inv(fn c -> dotall? or c != ?\n end, inv_sign(:pos, ccsign))
+    inv? = inv_sign(:pos, ccsign)
+    accept? = inv(fn c -> dotall? or c != ?\n end, inv?)
+
+    genfun =
+      if inv? do
+        fn ->
+          # force error to avoid infinite loop
+          raise(ArgumentError,
+            message: "Negated '.' any character wildcard not allowed in generator"
+          )
+        end
+      else
+        fn -> Uniset.pick(@all) end
+      end
+
     # negation turns Match into peek look ahead
-    Match.init({accept?, peek_sign(ccsign), nil}, caret(?., ccsign))
+    Match.init({accept?, peek_sign(ccsign), genfun}, caret(?., ccsign))
   end
 
   @doc "Match any character in the range between two characters (inclusive)."
   @spec match_char_range(T.char_pair(), T.sign()) :: pid()
   def match_char_range({c1, c2} = cr, ccsign \\ :pos)
       when is_char_range(cr) and is_atom(ccsign) do
-    accept? = inv(fn c -> c1 <= c and c <= c2 end, inv_sign(:pos, ccsign))
-    genfun = fn -> Enum.random(c1..c2) end
+    inv? = inv_sign(:pos, ccsign)
+    accept? = inv(fn c -> c1 <= c and c <= c2 end, inv?)
+    generator = {c1, c2} |> Uniset.new() |> gen(inv?)
     # negation turns Match into peek look ahead
-    Match.init({accept?, peek_sign(ccsign), genfun}, caret(c1, c2, ccsign))
+    Match.init({accept?, peek_sign(ccsign), generator}, caret(c1, c2, ccsign))
   end
 
   @doc "Match a character to a unicode block, category or script."
-  @spec match_property({atom(), T.sign(), atom()}, T.sign()) :: pid()
+  @spec match_property({T.property_tag(), T.sign(), atom()}, T.sign()) :: pid()
   def match_property({tag, sign, prop}, ccsign \\ :pos) when is_atom(prop) and is_atom(ccsign) do
-    accept? =
+    accept_fun =
       case tag do
         :char_block ->
           fn c -> Unicode.block(c) == prop end
@@ -297,14 +328,24 @@ defmodule Myrex.NFA do
           case prop do
             :Xan -> fn c -> subcat?(c, :L) or subcat?(c, :N) end
             :Xwd -> fn c -> subcat?(c, :L) or subcat?(c, :N) or c == ?_ end
-            :Xsp -> fn c -> c in [?\s, ?\n, ?\r, ?\t, ?\v, ?\f] or subcat?(c, :Z) end
+            :Xsp -> fn c -> c in @whitespace or subcat?(c, :Z) end
             _ -> fn c -> subcat?(c, prop) end
           end
       end
 
+    unigen =
+      case prop do
+        :Xan -> @xan
+        :Xwd -> @xwd
+        :Xsp -> @xsp
+        _ -> Uniset.new(tag, prop)
+      end
+
     # negation turns consuming match into peek look ahead
     inv? = inv_sign(sign, ccsign)
-    Match.init({inv(accept?, inv?), peek_sign(ccsign), nil}, "\\\\p{#{Atom.to_string(prop)}}")
+    acceptor = inv(accept_fun, inv?)
+    generator = gen(unigen, inv?)
+    Match.init({acceptor, peek_sign(ccsign), generator}, "\\\\p{#{Atom.to_string(prop)}}")
   end
 
   # test atom to be equal or prefix of another atom
@@ -332,6 +373,11 @@ defmodule Myrex.NFA do
   defp inv(accept?, false), do: accept?
   defp inv(accept?, true), do: fn c -> not accept?.(c) end
 
+  # optionally invert a character property generator
+  @spec gen(U.uniset(), T.boolean()) :: T.generator()
+  defp gen(uni, false), do: fn -> Uniset.pick(uni) end
+  defp gen(uni, true), do: fn -> Uniset.pick_neg(uni) end
+
   # optionally prefix the label with '^' for negation
 
   @spec caret(char(), T.sign()) :: String.t()
@@ -347,7 +393,4 @@ defmodule Myrex.NFA do
 
   # quote a character
   defp chr(c), do: [?', c, ?']
-
-  # random character from a range
-  defp rand_char(c1, c2) when c2 > c1, do: c1 + :rand.uniform(c2 - c1 + 1) - 1
 end
