@@ -21,16 +21,21 @@ defmodule Myrex.GeneratorTest do
   test "gen any test" do
     set_dump(true)
     do_gen(".")
+    do_gen("[.]")
     do_gen("a.b")
     do_gen(".?")
     do_gen(".+")
     do_gen(".*")
     do_gen(".{5}")
-    do_gen("[.]")
-    # TODO - negated char classes
-    # assert_raise ArgumentError, fn -> do_gen("[^.]") end
-    # TODO - special case for property Any == . 
-    # assert_raise ArgumentError, fn -> do_gen("\\P{Any}") end
+    set_dump(false)
+  end
+
+  test "gen neg any test" do
+    set_dump(true)
+    do_gen("\\P{Any}", [""])
+    do_gen("[\\P{Any}]", [""])
+    do_gen("[^.]", [""])
+    do_gen("[^\\p{Any}]", [""])
     set_dump(false)
   end
 
@@ -63,45 +68,21 @@ defmodule Myrex.GeneratorTest do
     set_dump(false)
   end
 
-  # test "par class test" do
-  #   do_gen("[A-Z]", {:char_class, :pos, [{:char_range, ?A, ?Z}]})
-  #   do_par("[_A-Z!]", {:char_class, :pos, [?_, {:char_range, ?A, ?Z}, ?!]})
+  test "gen char class test" do
+    set_dump(true)
+    # do_gen("[A-Z]")
+    # do_gen("[#0-9~]")
 
-  #   # anychar allowed in character class? always passes
-  #   do_par("[.]", {:char_class, :pos, [:any_char]})
+    # do_gen("[\\p{Mathematical Operators}]")
+    # do_gen("[\\P{Mathematical Operators}]")
 
-  #   do_par(
-  #     "[\\p{Mathematical Operators}]",
-  #     {:char_class, :pos, [{:char_block, :pos, :mathematical_operators}]}
-  #   )
+    # do_gen("[\\p{Lu}]")
+    # do_gen("[\\P{Cyrillic}]")
 
-  #   do_par("[\\p{Lu}]", {:char_class, :pos, [{:char_category, :pos, :Lu}]})
-  #   do_par("[\\p{Cyrillic}]", {:char_class, :pos, [{:char_script, :pos, :cyrillic}]})
-
-  #   do_par("[^#0-9~]", {:char_class, :neg, [?#, {:char_range, ?0, ?9}, ?~]})
-
-  #   # anychar allowed in negated character class? never passes
-  #   do_par("[^.]", {:char_class, :neg, [:any_char]})
-
-  #   # escape '[' in char class
-  #   do_par("[\\[\\^\\-\\]]", {:char_class, :pos, [?[, ?^, ?-, ?]]})
-
-  #   # no need to escape '[' '^' in char class??
-  #   do_par("[a^]", {:char_class, :pos, [?a, ?^]})
-  #   do_par("[^^]", {:char_class, :neg, [?^]})
-  #   do_par("[^a^]", {:char_class, :neg, [?a, ?^]})
-
-  #   bad_par("[")
-  #   bad_par("]")
-  #   bad_par("[]")
-  #   bad_par("[]]")
-  #   bad_par("[-z]")
-  #   bad_par("[a-]")
-  #   bad_par("[a*]")
-  #   bad_par("[z-a]")
-
-  #   bad_par("[^]")
-  # end
+    # do_gen("[^_A-Z!]")
+    do_gen("[^#0-9~]")
+    set_dump(false)
+  end
 
   test "gen extension classes" do
     set_dump(true)
@@ -152,8 +133,9 @@ defmodule Myrex.GeneratorTest do
     if outputs, do: assert(gen in outputs)
 
     # every generated string should be correctly matched by the same NFA
-    match = Myrex.match(re, gen)
-    dump(match, label: "MATCH ")
-    assert {:match, _} = match
+    if gen != "" do
+      match = Myrex.match(re, gen)
+      assert {:match, _} = match
+    end
   end
 end

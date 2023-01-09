@@ -9,6 +9,7 @@ defmodule Myrex.NFA.BeginNegCC do
 
   alias Myrex.Proc.PNode
   alias Myrex.Proc.Proc
+  alias Myrex.Uniset
 
   @behaviour PNode
 
@@ -31,6 +32,10 @@ defmodule Myrex.NFA.BeginNegCC do
       state when T.is_par_state(state) ->
         # beginning a peek sequence is a no-op for parsing
         Proc.traverse(next, state)
+
+      {:generate, str, nil, gen} ->
+        # put an empty Uniset in the gen state to start NegCC accumulation
+        Proc.traverse(next, {:generate, str, Uniset.new(:none), gen})
 
       msg ->
         raise RuntimeError, message: "Unhandled message #{inspect(msg)}"

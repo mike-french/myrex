@@ -60,10 +60,10 @@ defmodule Myrex.UnisetTest do
   end
 
   test "all characters" do
-    do_uniset(Uniset.new(), "ALL", false)
+    do_uniset(Uniset.new(:all), "ALL", false)
   end
 
-  defp do_uniset({:uni_set, n, runs} = uni, label, neg? \\ true) do
+  defp do_uniset({_uni_set, n, runs} = uni, label, neg? \\ true) do
     dump(uni, label: "#{label}")
     assert n == Uniset.count(runs)
     c = Uniset.pick(uni)

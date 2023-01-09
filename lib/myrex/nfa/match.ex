@@ -4,12 +4,14 @@ defmodule Myrex.NFA.Match do
   alias Myrex.Executor
   alias Myrex.Proc.PNode
   alias Myrex.Proc.Proc
+  alias Myrex.Uniset
 
   @behaviour PNode
 
   @impl PNode
-  def init({accept?, peek?, genfun} = args, label)
-      when is_function(accept?, 1) and is_boolean(peek?) and is_function(genfun) do
+  def init({accept?, peek?, gen_fun_or_uni} = args, label)
+      when is_function(accept?, 1) and is_boolean(peek?) and
+             (is_function(gen_fun_or_uni) or is_tuple(gen_fun_or_uni)) do
     Proc.init_child(__MODULE__, :attach, [args], label)
   end
 
@@ -22,7 +24,7 @@ defmodule Myrex.NFA.Match do
   end
 
   @impl PNode
-  def run({accept?, peek?, genfun} = args, next) do
+  def run({accept?, peek?, gen_fun_or_uni} = args, next) do
     receive do
       {:parse, <<c::utf8, rest::binary>> = all, pos, groups, captures, executor} ->
         if accept?.(c) do
@@ -37,10 +39,24 @@ defmodule Myrex.NFA.Match do
         # end of input
         Executor.notify_result(executor, :no_match)
 
-      {:generate, str, generator} ->
-        char = genfun.()
-        new_str = <<str::binary, char::utf8>>
-        Proc.traverse(next, {:generate, new_str, generator})
+      {:generate, str, nil, gen} = msg when is_function(gen_fun_or_uni, 0) ->
+        # nil Uniset means not in NegCC
+        # constructor arg is character generator function
+        case gen_fun_or_uni.() do
+          # negated anychar will return empty result
+          # issue warning message?
+          nil ->
+            Proc.traverse(next, msg)
+
+          char ->
+            IO.inspect(Integer.to_string(char, 16), label: "char")
+            Proc.traverse(next, {:generate, <<str::binary, char::utf8>>, nil, gen})
+        end
+
+      {:generate, str, uni, gen} when is_tuple(gen_fun_or_uni) ->
+        # valid Uniset means in NegCC
+        # constructor arg is uniset for accumulation
+        Proc.traverse(next, {:generate, str, Uniset.union(uni, gen_fun_or_uni), gen})
 
       msg ->
         raise RuntimeError, message: "Unhandled message #{inspect(msg)}"

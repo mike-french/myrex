@@ -1,8 +1,8 @@
 
 # myrex - MY Regular Expressions in eliXir
 
-An Elixir library for matching strings against regular expressions (REGEX),
-or generating strings that match the regular expression.
+An Elixir library for matching strings against a regular expressions (REGEX),
+or generating strings that match a regular expression.
 
 The implementation is based on the idea of _Process Oriented Programming:_ 
 * Algorithms are implemented using a fine-grain directed graph of 
@@ -604,7 +604,7 @@ at the end of execution, but the main NFA is not changed.
 
 ## Generators
 
-The NFA can also _generate_ strings that match the regular expression.
+The NFA can also _generate_ strings that match a regular expression.
 
 The same NFA is used for parsing and generation.
 Each process has separate rules for handling parser and generator traversals.
@@ -649,12 +649,17 @@ Although quantification is technically unbounded,
 the exponential decay will usually result in a small finite sequence, 
 so all generator traversals will reach the `Success` node.
 
-However, in the current implementation, there will
-be a failure if a step that fails to generate a character:
+There is special handling for negated generation 
+from the full assigned character set. 
+The following cases will force an empty generation step,
+no character will be added to the output string:
 * The negated _Any_ character property `\P{Any}`
-  cannot be used in a normal sequence or positive character class.
-* The _any character_ wildcard `.` and _Any_ character property `\p{Any}`
-  cannot be used in a negated character class. 
+  in a normal sequence or positive character class.
+* The _any character_ wildcard `.` or _Any_ character property `\p{Any}`
+  in a negated character class. 
+  
+Note that the resulting string does not match the regular expression,
+so it violates the basic contract that generate-match is successful.
 
 ## Graph Output
 

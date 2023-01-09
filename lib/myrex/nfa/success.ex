@@ -45,7 +45,7 @@ defmodule Myrex.NFA.Success do
         # for a normal match, this is a no_match failure
         Executor.notify_result(executor, :no_match)
 
-      {:generate, str, generator} ->
+      {:generate, str, _uni, generator} ->
         # finish state of the NFA with completed string
         Generator.notify_result(generator, {:generate, str})
 

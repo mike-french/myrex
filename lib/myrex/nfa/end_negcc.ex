@@ -6,6 +6,7 @@ defmodule Myrex.NFA.EndNegCC do
 
   alias Myrex.Proc.PNode
   alias Myrex.Proc.Proc
+  alias Myrex.Uniset
 
   @behaviour PNode
 
@@ -29,6 +30,13 @@ defmodule Myrex.NFA.EndNegCC do
         # the preceding AND sequence matched on a peek lookahead 
         # now they have all passed, so we advance the input
         Proc.traverse(next, {:parse, rest, pos + 1, groups, captures, executor})
+
+      {:generate, str, uni, gen} ->
+        # preceding char match sequence has accumulated negated uniset
+        case Uniset.pick_neg(uni) do
+          nil -> Proc.traverse(next, {:generate, str, nil, gen})
+          char -> Proc.traverse(next, {:generate, <<str::binary, char::utf8>>, nil, gen})
+        end
 
       msg ->
         raise RuntimeError, message: "Unhandled message #{inspect(msg)}"

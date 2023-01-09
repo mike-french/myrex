@@ -1,6 +1,8 @@
 defmodule Myrex.Types do
   @moduledoc "Types and guards for Myrex."
 
+  alias Myrex.Uniset
+
   # -----------------------------
   # cardinal and ordinal integers
   # -----------------------------
@@ -251,8 +253,8 @@ defmodule Myrex.Types do
   @typedoc "A function that matches a single character."
   @type acceptor() :: (char() -> boolean())
 
-  @typedoc "A function that generates a single character."
-  @type generator() :: (() -> char())
+  @typedoc "A function that generates zero or one characters."
+  @type generator() :: (() -> nil | char())
 
   @typedoc """
   A stack of open groups.
@@ -275,9 +277,10 @@ defmodule Myrex.Types do
   @typedoc """
   Generator traversal state passed as a message between NFA nodes.
 
-  The executor is the process for reporting changes in the 
-  message count and the final result of match or no match.
+  The `Uniset` is for use inside of negated character classes.
+
+  The generator is the process address for reporting results.
   """
-  @type gen_state() :: {:generate, String.t(), generator :: pid()}
+  @type gen_state() :: {:generate, String.t(), nil | Uniset.t(), generator :: pid()}
   defguard is_gen_state(s) when is_tuple(s) and tuple_size(s) == 3 and elem(s, 0) == :generate
 end

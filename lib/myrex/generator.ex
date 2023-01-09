@@ -42,7 +42,7 @@ defmodule Myrex.Generator do
   def exec(teardown, start, opts, client) do
     timeout = Keyword.get(opts, :timeout, T.default(:timeout))
     multiple = Keyword.get(opts, :multiple, T.default(:multiple))
-    Proc.traverse(start, {:generate, "", self()})
+    Proc.traverse(start, {:generate, "", nil, self()})
     generate(client, teardown, timeout, multiple)
   end
 
@@ -77,18 +77,15 @@ defmodule Myrex.Generator do
   """
   @spec generate(pid(), nil | pid(), timeout(), T.multiple_flag()) :: no_return()
 
-  def generate(client, nfa, timeout, multi) do
+  def generate(client, nfa, timeout, _multi) do
     receive do
       {:generate, _str} = result ->
         notify_result(client, result)
 
         # for a one-shot execution, with all NFA processes linked to this one
         # exiting after the first match will kill the NFA process network
-        ### if multi == :one do 
         Start.teardown(nfa)
         exit(:normal)
-
-      ### end
 
       msg ->
         raise RuntimeError, message: "Unhandled message #{inspect(msg)}"

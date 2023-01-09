@@ -59,7 +59,7 @@ defmodule Myrex.NFA.Split do
         if delta_n > 0, do: send(executor, delta_n)
         Enum.each(nexts, &Proc.traverse(&1, msg))
 
-      {:generate, _str, _gen} = gen ->
+      {:generate, _str, _uni, _gen} = gen ->
         # chunked alternatives, ignores weights of each choice (e.g. char v. char range)
         Proc.traverse(Enum.random(nexts), gen)
 

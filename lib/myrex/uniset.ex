@@ -13,31 +13,41 @@ defmodule Myrex.Uniset do
   alias Unicode.GeneralCategory, as: Category
   alias Unicode.Script
 
-  @typedoc "A run-length encoding of a character range."
+  @typedoc """
+  A run-length encoding of a character range.
+
+  There is a special flag for the full assigned character set.
+  """
   @type charun() :: {start :: char(), size :: T.count1()}
   @type charuns() :: [charun()]
-  @type uniset() :: {:uni_set, size :: T.count1(), charuns()}
+  @type uniset() :: {:uni_set | :uni_all, size :: T.count(), charuns()}
+
+  @type t() :: uniset()
 
   # list of standard ascii whitespace characters
   @whitespace [?\s, ?\n, ?\r, ?\t, ?\v, ?\f]
+
+  # surrogate codes are included in the Unicode library assigned set
+  # but are not recognized as valid UTF8 characters by Erlang
+  defguard is_surrogate(c) when 0xD800 <= c and c <= 0xDFFF
 
   # TODO - find a way to cache large or composite unisets as module attributes
   # all, xan, xwd, xsp
 
   @doc """
-  Create a new charset for all assigned Unicode characters.
+  Create a new charset for a single character, list of characters,
+  character range tuple, all characters, or none.
   """
-  @spec new() :: uniset()
-  def new() do
+  @spec new(:none | :all | char() | [char()] | T.char_pair()) :: uniset()
+
+  def new(:all) do
     ranges = rle(Unicode.assigned())
-    {:uni_set, count(ranges), ranges}
+    {:uni_all, count(ranges), ranges}
   end
 
-  @doc """
-  Create a new charset for a single character, list of characters 
-  or character range tuple.
-  """
-  @spec new(char() | [char()] | T.char_pair()) :: uniset()
+  def new(:none) do
+    {:uni_set, 0, []}
+  end
 
   def new(c) when is_char(c) do
     {:uni_set, 1, [{c, 1}]}
@@ -83,6 +93,10 @@ defmodule Myrex.Uniset do
     union(new(:char_category, :Z), new(@whitespace))
   end
 
+  def new(:char_category, :Any) do
+    new(:all)
+  end
+
   def new(:char_category, cat) when is_atom(cat) do
     n = Category.count(cat)
     ranges = cat |> Category.get() |> rle()
@@ -98,8 +112,13 @@ defmodule Myrex.Uniset do
 
   @doc "Pick a random character from a charset."
   @spec pick(uniset()) :: char()
-  def pick({:uni_set, 1, [{c, 1}]}), do: c
-  def pick({:uni_set, n, ranges}), do: pick(ranges, :rand.uniform(n))
+  def pick({_uni_set, 1, [{c, 1}]}), do: c
+
+  def pick({_uni_set, n, ranges} = uni) do
+    c = :rand.uniform(n)
+    # filter out surrogates
+    if is_surrogate(c), do: pick(uni), else: pick(ranges, c)
+  end
 
   @spec pick(charuns(), T.count1()) :: char()
   defp pick([{c, 1} | _rs], 1), do: c
@@ -107,16 +126,22 @@ defmodule Myrex.Uniset do
   defp pick([{_c, m} | rs], n), do: pick(rs, n - m)
 
   @doc "Pick a random character that is not in a charset."
-  @spec pick_neg(uniset()) :: char()
+  @spec pick_neg(uniset()) :: nil | char()
+
+  def pick_neg({:uni_all, _, _}) do
+    nil
+  end
+
   def pick_neg(uni) do
     # very slow, especially for large unisets, such as Lo - Other Letter
-    c = pick(new())
-    if not contains?(uni, c), do: c, else: pick_neg(uni)
+    c = pick(new(:all))
+    # check membership and remove surrogates
+    if not contains?(uni, c) and not is_surrogate(c), do: c, else: pick_neg(uni)
   end
 
   @doc "Get the character count for a charset or a list of run-length encoded tuples."
   @spec count(uniset() | charuns()) :: T.count1()
-  def count({:uni_set, n, _runs}), do: n
+  def count({_uni_set, n, _runs}), do: n
   def count(runs) when is_list(runs), do: sum(runs, 0)
 
   defp sum([], total), do: total
@@ -124,15 +149,30 @@ defmodule Myrex.Uniset do
 
   @doc "Union of two disjoint charsets."
   @spec union(uniset(), uniset()) :: uniset()
+
+  def union({:uni_all, _, _} = all, _) do
+    all
+  end
+
+  def union(_, {:uni_all, _, _} = all) do
+    all
+  end
+
   def union({:uni_set, n1, rs1}, {:uni_set, n2, rs2}) do
     # assumes arguments are disjoint
     # final ranges are not sorted
+    # no check for constructing all chars
     {:uni_set, n1 + n2, rs1 ++ rs2}
   end
 
-  @doc "Test if a charset contains a character."
+  @doc """
+  Test if a charset contains a character.
+
+  Can test false for legal char value in `anychar` set, 
+  because not all codepoints are assigned.
+  """
   @spec contains?(uniset(), char()) :: boolean()
-  def contains?({:uni_set, _n, ranges}, c), do: in?(ranges, c)
+  def contains?({_uni_set, _n, ranges}, c), do: in?(ranges, c)
 
   # slow linear scan - there are much faster data structures to do this
   @spec in?(uniset(), char()) :: boolean()
