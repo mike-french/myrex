@@ -27,6 +27,9 @@ defmodule Myrex.Uniset do
   # list of standard ascii whitespace characters
   @whitespace [?\s, ?\n, ?\r, ?\t, ?\v, ?\f]
 
+  # maximum character value
+  @maxchar 0x10FFFF
+
   # surrogate codes are included in the Unicode library assigned set
   # but are not recognized as valid UTF8 characters by Erlang
   defguard is_surrogate(c) when 0xD800 <= c and c <= 0xDFFF
@@ -117,6 +120,7 @@ defmodule Myrex.Uniset do
   def pick({_uni_set, n, ranges} = uni) do
     c = :rand.uniform(n)
     # filter out surrogates
+    # will infinite loop if the arg uniset is just surrogate blocks
     if is_surrogate(c), do: pick(uni), else: pick(ranges, c)
   end
 
@@ -134,6 +138,7 @@ defmodule Myrex.Uniset do
 
   def pick_neg(uni) do
     # very slow, especially for large unisets, such as Lo - Other Letter
+    # or double negative of a small uniset, such as [^\P{}]
     c = pick(new(:all))
     # check membership and remove surrogates
     if not contains?(uni, c) and not is_surrogate(c), do: c, else: pick_neg(uni)
@@ -158,17 +163,55 @@ defmodule Myrex.Uniset do
     all
   end
 
-  def union({:uni_set, n1, rs1}, {:uni_set, n2, rs2}) do
+  def union({:uni_set, n1, runs1}, {:uni_set, n2, runs2}) do
     # assumes arguments are disjoint
     # final ranges are not sorted
     # no check for constructing all chars
-    {:uni_set, n1 + n2, rs1 ++ rs2}
+    {:uni_set, n1 + n2, runs1 ++ runs2}
+  end
+
+  @doc """
+  Complement (negation) of a charset.
+
+  The result will contain unassigned characters
+  within the legal integer range of character values.
+  """
+  @spec complement(uniset()) :: uniset()
+
+  def complement({:uni_all, _, _}), do: new(:none)
+  def complement({:uni_set, 0, []}), do: new(:all)
+
+  def complement({:uni_set, _n, runs}) do
+    # sorting is usually redundant here
+    # but is needed for composite extended properties Xyz
+    # because union does not sort its output
+    # and it would be inefficient if it did 
+    # so localize the inefficiency here
+    # only for double negated char class properties (rare)
+    runs = gaps(Enum.sort(runs), 0, [])
+    {:uni_set, count(runs), runs}
+  end
+
+  # calculate the gaps in a run-length encoding
+  # hwm is the high water mark
+  # meaning the next value above the previous gap
+
+  defp gaps([{hwm, n} | rs], hwm, runs) do
+    gaps(rs, hwm + n, runs)
+  end
+
+  defp gaps([{i, n} | rs], hwm, runs) when i > hwm do
+    gaps(rs, i + n, [{hwm, i - hwm} | runs])
+  end
+
+  defp gaps([], hwm, runs) when hwm < @maxchar do
+    [{hwm, @maxchar - hwm} | runs]
   end
 
   @doc """
   Test if a charset contains a character.
 
-  Can test false for legal char value in `anychar` set, 
+  Can test false for legal char integer value in `.` or `\\p{Any}` set, 
   because not all codepoints are assigned.
   """
   @spec contains?(uniset(), char()) :: boolean()

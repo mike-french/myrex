@@ -336,6 +336,7 @@ defmodule Myrex.NFA do
           fn c -> Unicode.script(c) == prop end
 
         :char_category ->
+          # Xwd could expand '_' to be punctuation connectors \p{Pc}
           case prop do
             :Xan -> fn c -> subcat?(c, :L) or subcat?(c, :N) end
             :Xwd -> fn c -> subcat?(c, :L) or subcat?(c, :N) or c == ?_ end
@@ -361,7 +362,7 @@ defmodule Myrex.NFA do
       case ccsign do
         :pos -> gen(gen_uni, inv?)
         # TODO - need to handle or add inv? flag here 
-        :neg -> gen_uni
+        :neg -> comp(gen_uni, sign)
       end
 
     Match.init({acceptor, peek_sign(ccsign), gen_fun_or_uni}, prop(p(sign), prop))
@@ -388,14 +389,19 @@ defmodule Myrex.NFA do
   defp peek_sign(:neg), do: true
 
   # optionally invert the acceptor to be NOT the original result
-  @spec inv(T.acceptor(), T.boolean()) :: T.acceptor()
+  @spec inv(T.acceptor(), boolean()) :: T.acceptor()
   defp inv(accept?, false), do: accept?
   defp inv(accept?, true), do: fn c -> not accept?.(c) end
 
   # optionally invert a character property generator
-  @spec gen(U.uniset(), T.boolean()) :: T.generator()
+  @spec gen(U.uniset(), boolean()) :: T.generator()
   defp gen(uni, false), do: fn -> Uniset.pick(uni) end
   defp gen(uni, true), do: fn -> Uniset.pick_neg(uni) end
+
+  # optionally complement a charset
+  @spec comp(U.uniset(), T.sign()) :: U.uniset()
+  defp comp(uni, :pos), do: uni
+  defp comp(uni, :neg), do: Uniset.complement(uni)
 
   # control character for positive or negative property
   @spec p(atom()) :: String.t()

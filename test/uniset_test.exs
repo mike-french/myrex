@@ -63,6 +63,24 @@ defmodule Myrex.UnisetTest do
     do_uniset(Uniset.new(:all), "ALL", false)
   end
 
+  test "complement" do
+    set_dump(true)
+
+    a = Uniset.new(?a)
+    comp_a = Uniset.complement(a)
+    do_uniset(comp_a, "comp a")
+
+    az = Uniset.new({?a, ?z})
+    comp_az = Uniset.complement(az)
+    do_uniset(comp_az, "comp az")
+
+    lu = Uniset.new(:char_category, :Lu)
+    comp_lu = Uniset.complement(lu)
+    do_uniset(comp_lu, "comp Lu")
+
+    set_dump(false)
+  end
+
   defp do_uniset({_uni_set, n, runs} = uni, label, neg? \\ true) do
     dump(uni, label: "#{label}")
     assert n == Uniset.count(runs)

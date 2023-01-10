@@ -79,8 +79,11 @@ defmodule Myrex.GeneratorTest do
     # do_gen("[\\p{Lu}]")
     # do_gen("[\\P{Cyrillic}]")
 
-    # do_gen("[^_A-Z!]")
+    do_gen("[^_A-Z!]")
     do_gen("[^#0-9~]")
+
+    # double negative will be incorrect
+    do_gen("[^\\P{Lu}]")
     set_dump(false)
   end
 

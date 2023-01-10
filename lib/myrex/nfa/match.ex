@@ -45,12 +45,8 @@ defmodule Myrex.NFA.Match do
         case gen_fun_or_uni.() do
           # negated anychar will return empty result
           # issue warning message?
-          nil ->
-            Proc.traverse(next, msg)
-
-          char ->
-            IO.inspect(Integer.to_string(char, 16), label: "char")
-            Proc.traverse(next, {:generate, <<str::binary, char::utf8>>, nil, gen})
+          nil -> Proc.traverse(next, msg)
+          char -> Proc.traverse(next, {:generate, <<str::binary, char::utf8>>, nil, gen})
         end
 
       {:generate, str, uni, gen} when is_tuple(gen_fun_or_uni) ->
