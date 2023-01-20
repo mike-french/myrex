@@ -1,7 +1,7 @@
 
 # myrex - MY Regular Expressions in eliXir
 
-An Elixir library for matching strings against a regular expressions (REGEX),
+An Elixir library for matching strings against a regular expression (REGEX),
 or generating strings that match a regular expression.
 
 The implementation is based on the idea of _Process Oriented Programming:_ 
@@ -91,7 +91,8 @@ Two traversal strategies for ambiguous matches:
   
 Simple public interface in `Myrex` module:
 * Batch - `compile` and `teardown`
-* Execution - `match` and `search`
+* Parsing - `match` and `search`
+* Creation - `generate`
 
 Binary Data:
 * Strings are processed as UTF-8 binaries
@@ -107,7 +108,7 @@ and convert them to PNG images.
 
 Generators that use traversals of the NFA 
 to create strings that match the regular expression.
-The same NFA is used for parsing and generating.
+The same NFA is used for parsing and generation.
 An NFA network can parse and generate strings concurrently.
 
 ### Captures
@@ -119,7 +120,7 @@ The set of all captures is returned as a map of name keys
 to capture values. 
 
 Unlabelled groups `(`...`)` are implicitly named with 1-based integers
-based on the order of the opening `(` in the REGEX.
+using the order of the opening `(` in the REGEX.
 
 Groups can be explicitly labelled with strings
 using the syntax `(?<name>`....`)`. 
@@ -130,7 +131,7 @@ referenced by both label and number keys.
 Groups can be forced to be non-capturing
 using the syntax `(?:`...`.)`.
 
-The 0 capture key always refers to the whole input string.
+The `0` capture key always refers to the whole input string.
 
 Capture values can be represented in two ways:
 * Integer `{position, length}` reference into the input string.
@@ -523,7 +524,7 @@ all failure traversals to finish.
 ### Ambiguous Example
 
 Consider a regex of the form `(a?){m}(a*){m}` 
-matching a string of _m_ copies of the `a` character.
+matching a string of _m_ copies of the `a` character 
 (a highly ambiguous exaggeration from the example in
 \[[Cox](https://swtch.com/~rsc/regexp/regexp1.html)\]).
 
@@ -535,7 +536,7 @@ $$S(m) \hspace{1em} = \hspace{1em} \sum_{k=0}^m {}^{m}C_{k} \times {}^{m+k-1}C_{
 
 Notice in the diagram below 
 that $n=m+k-1$ indexes the _row_ 
-and $n=m$ indexes the _diagonal.
+and $n=m$ indexes the _diagonal._
 
 Here are specific examples for `m=3` and `m=4`:
 
@@ -550,7 +551,7 @@ S(4) = [1,4,6,4,1] * [1,4,10,20,35] = 1+16+60+80+35 = 192
 </p>
 
 These are the numbers of traversals _S(m)_ for each value of _m,_
-and the elapsed time  for _one_ and _all_ matches in seconds, 
+and some of the elapsed times for _one_ and _all_ matches in seconds, 
 except for the ~0 timings, which are less than 1 microsecond:
 
 
@@ -639,7 +640,7 @@ making a random choice between outputs means:
   as $(1/2)^{n}$ for the $n^{th}$ step.
   
 For example, the `*` quantifier has 0.5 chance of zero, 
-0.25 chance of 1, 0.125 chance of 2, _etc._
+a 0.25 chance of 1, a 0.125 chance of 2, _etc._
 
 In future, the `Split` node for quantifiers,
 will weight the choice of continuing or terminating

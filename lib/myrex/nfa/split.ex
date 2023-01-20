@@ -61,6 +61,7 @@ defmodule Myrex.NFA.Split do
 
       {:generate, _str, _uni, _gen} = gen ->
         # chunked alternatives, ignores weights of each choice (e.g. char v. char range)
+        # quantifiers will split 50:50 between halt/more so decay as 0.5^n
         Proc.traverse(Enum.random(nexts), gen)
 
       msg ->
